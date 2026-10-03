@@ -1,0 +1,71 @@
+// An Apple Music artist.
+
+import core;
+import material;
+import elbert;
+
+widget ArtistPage = switch data.status {
+  "loading": Loader(),
+  "error": ErrorView(message: data.error),
+  default: Stagger(
+    durationMs: 500,
+    child: ScrollPage(
+      topInset: false,
+      bleed: true,
+      bottomInset: "dock",
+      slivers: [
+        StickyHeader(
+          title: data.title,
+          subtitle: data.subtitle,
+          type: "ARTIST",
+          cover: data.cover,
+          info: data.info,
+          onPlayAll: event "playAll" {},
+          onShuffle: event "shuffle" {},
+        ),
+        switch data.hasBio {
+          true: SliverBox(
+            child: Padding(
+              padding: [16.0, 20.0, 16.0, 0.0],
+              child: SlideIn(delayMs: 120, child: ExpandableText(text: data.bio, collapsedLines: 4, threshold: 240)),
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.hasTopSongs {
+          true: SliverBox(
+            child: Padding(
+              padding: [16.0, 28.0, 16.0, 8.0],
+              child: SlideIn(delayMs: 160, child: ArtistHeading(text: "Top Songs")),
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        TrackList(items: data.topSongs, spacing: 8.0, onPlay: event "play" {}, onMenu: event "menu" {}),
+        SliverBox(
+          child: Column(
+            crossAxisAlignment: "stretch",
+            children: [
+              ...for r in data.rails:
+                SlideIn(
+                  delayMs: 200,
+                  child: Padding(
+                    padding: [0.0, 28.0, 0.0, 0.0],
+                    child: Column(
+                      crossAxisAlignment: "stretch",
+                      children: [
+                        Padding(padding: [16.0, 0.0, 16.0, 14.0], child: ArtistHeading(text: r.title)),
+                        CardRail(size: "artist", innerPadding: 16.0, items: r.items, onTap: event "rail" { rail: r.key }),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+};
+
+widget ArtistHeading = ThemedText(text: args.text, style: "titleLarge", weight: 600, size: 20.0);

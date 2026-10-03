@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../orchard"
+    },
+    {
+      "path": "../elbert"
+    },
+    {
+      "path": "../elbert-plugin-sdk"
+    }
+  ]
+}

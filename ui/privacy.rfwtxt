@@ -1,0 +1,48 @@
+// Importing Apple's privacy export (Settings → Apple Music → Listening
+// history elsewhere).
+
+import core;
+import material;
+import elbert;
+
+widget ImportSheet = Padding(
+  padding: [20.0, 0.0, 20.0, 16.0],
+  child: switch data.status {
+    "confirm": SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: "stretch",
+        mainAxisSize: "min",
+        children: [
+          ThemedText(text: "Import Apple Music play activity?", style: "headlineSmall"),
+          SizedBox(height: 12.0),
+          ThemedText(text: data.headline, style: "bodyMedium", weight: 600),
+          SizedBox(height: 12.0),
+          ...for p in data.points:
+            Padding(
+              padding: [0.0, 0.0, 0.0, 8.0],
+              child: StatusLine(icon: p.icon, iconSize: 15.0, style: "bodySmall", textColor: "onSurfaceVariant", text: p.text),
+            ),
+          SizedBox(height: 20.0),
+          Row(
+            mainAxisAlignment: "end",
+            children: [
+              Button(variant: "text", label: "Cancel", onPressed: event "cancel" {}),
+              SizedBox(width: 8.0),
+              Button(variant: "filled", label: data.importLabel, onPressed: event "import" {}),
+            ],
+          ),
+        ],
+      ),
+    ),
+    default: SizedBox(
+      height: 120.0,
+      child: Row(
+        children: [
+          Spinner(size: 20.0),
+          SizedBox(width: 14.0),
+          Expanded(child: ThemedText(text: data.progress, style: "bodyMedium")),
+        ],
+      ),
+    ),
+  },
+);

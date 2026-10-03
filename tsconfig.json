@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "lib": ["ES2023"],
+    "types": ["@evolvedmesh/elbert-plugin-sdk"],
+    "skipLibCheck": false
+  },
+  "include": ["src"]
+}

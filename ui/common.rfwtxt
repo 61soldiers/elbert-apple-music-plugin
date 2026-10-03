@@ -1,0 +1,211 @@
+// Pieces every Apple Music page shares: the setup flow, the Apple sign-in
+// form, the playlist picker, and the loading/error states of a page body.
+
+import core;
+import material;
+import elbert;
+
+// A page body that is still loading, failed, or ready (`child`).
+widget Body = switch args.status {
+  "loading": Loader(),
+  "error": ErrorView(message: args.error, back: args.back),
+  default: args.child,
+};
+
+// ---- Sign-in --------------------------------------------------------------------
+//
+// `form` is SignIn.data(); every input and button sends `event "setup"` with
+// an `action`, which the page hands to its SetupFlow.
+
+widget SignInForm = switch args.form.stage {
+  "busy": Padding(padding: [0.0, 8.0, 0.0, 8.0], child: Loader(expand: false, height: 64.0)),
+  "code": Column(
+    crossAxisAlignment: "stretch",
+    mainAxisSize: "min",
+    children: [
+      StatusLine(icon: "shield-check", tone: "primary", text: "Apple sent a code to your trusted devices."),
+      SizedBox(height: 10.0),
+      TextInput(
+        label: "Verification code",
+        hint: "123456",
+        icon: "hash",
+        keyboard: "number",
+        digitsOnly: true,
+        maxLength: 8,
+        resetKey: args.form.codeReset,
+        disabled: switch args.form.expired { true: true, default: args.form.busy },
+        onChanged: event "setup" { action: "code" },
+        onSubmitted: event "setup" { action: "verify" },
+      ),
+      SizedBox(height: 6.0),
+      ThemedText(
+        text: args.form.countdown,
+        style: "bodySmall",
+        color: switch args.form.expired { true: "error", default: "onSurfaceVariant" },
+      ),
+      SizedBox(height: 14.0),
+      Row(
+        children: [
+          Expanded(
+            child: Button(
+              variant: "filled",
+              wide: true,
+              label: "Verify",
+              busy: args.form.busy,
+              disabled: args.form.expired,
+              onPressed: event "setup" { action: "verify" },
+            ),
+          ),
+          SizedBox(width: 10.0),
+          Button(variant: "text", label: args.form.resendLabel, disabled: args.form.busy, onPressed: event "setup" { action: "resend" }),
+        ],
+      ),
+      switch args.form.hasError { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 10.0), Message(text: args.form.error, color: "error")]), default: SizedBox() },
+    ],
+  ),
+  default: Column(
+    crossAxisAlignment: "stretch",
+    mainAxisSize: "min",
+    children: [
+      TextInput(
+        label: "Apple ID",
+        hint: "you@example.com",
+        icon: "mail",
+        keyboard: "email",
+        value: args.form.appleId,
+        disabled: args.form.busy,
+        onChanged: event "setup" { action: "appleId" },
+      ),
+      SizedBox(height: 10.0),
+      TextInput(
+        label: "Password",
+        hint: "••••••••",
+        icon: "lock",
+        obscure: true,
+        disabled: args.form.busy,
+        onChanged: event "setup" { action: "password" },
+        onSubmitted: event "setup" { action: "signIn" },
+      ),
+      SizedBox(height: 16.0),
+      Button(variant: "filled", wide: true, label: "Sign in", busy: args.form.busy, onPressed: event "setup" { action: "signIn" }),
+      switch args.form.hasError { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 10.0), Message(text: args.form.error, color: "error")]), default: SizedBox() },
+    ],
+  ),
+};
+
+// ---- The setup flow -----------------------------------------------------------------
+
+widget SetupFlow = switch args.setup.step {
+  "busy": SetupShell(icon: args.setup.icon, title: args.setup.title, message: args.setup.message, busy: true),
+  "choose": SetupShell(
+    icon: args.setup.icon,
+    title: args.setup.title,
+    message: args.setup.message,
+    child: Column(
+      children: [
+        ChoiceCard(
+          icon: "container",
+          title: "Run it for me",
+          subtitle: args.setup.hostSubtitle,
+          busy: args.setup.chooseBusy,
+          disabled: args.setup.chooseBusy,
+          onTap: event "setup" { action: "local" },
+        ),
+        SizedBox(height: 12.0),
+        ChoiceCard(
+          icon: "globe",
+          title: "Connect to a server",
+          subtitle: "Point Elbert at an Orchard server you already run.",
+          disabled: args.setup.chooseBusy,
+          onTap: event "setup" { action: "remote" },
+        ),
+      ],
+    ),
+  ),
+  "remote": SetupShell(
+    icon: args.setup.icon,
+    title: args.setup.title,
+    message: args.setup.message,
+    child: Column(
+      crossAxisAlignment: "stretch",
+      children: [
+        TextInput(
+          label: "Server URL",
+          hint: "https://orchard.example.com",
+          icon: "link",
+          keyboard: "url",
+          disabled: args.setup.remoteBusy,
+          onChanged: event "setup" { action: "url" },
+        ),
+        SizedBox(height: 10.0),
+        TextInput(
+          label: "Access key",
+          hint: "••••••••••••••••",
+          icon: "key-round",
+          obscure: true,
+          disabled: args.setup.remoteBusy,
+          onChanged: event "setup" { action: "key" },
+          onSubmitted: event "setup" { action: "connect" },
+        ),
+        switch args.setup.hasRemoteError { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 10.0), Message(text: args.setup.remoteError, color: "error")]), default: SizedBox() },
+        SizedBox(height: 16.0),
+        Button(variant: "filled", wide: true, label: "Connect", busy: args.setup.remoteBusy, onPressed: event "setup" { action: "connect" }),
+        switch args.setup.canGoBack { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 4.0),
+            Button(variant: "text", label: "Use Docker instead", disabled: args.setup.remoteBusy, onPressed: event "setup" { action: "back" })]), default: SizedBox() },
+      ],
+    ),
+  ),
+  "error": SetupShell(
+    icon: args.setup.icon,
+    tone: "error",
+    title: args.setup.title,
+    message: args.setup.message,
+    child: Column(
+      crossAxisAlignment: "stretch",
+      children: [
+        switch args.setup.hasRetry { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [Button(variant: "filled", wide: true, label: args.setup.retryLabel, onPressed: event "setup" { action: args.setup.retry })]), default: SizedBox() },
+        switch args.setup.canViewLogs { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 4.0),
+            Button(variant: "text", label: args.setup.logsLabel, onPressed: event "setup" { action: "logs" })]), default: SizedBox() },
+        switch args.setup.hasLogs { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 8.0), LogBox(text: args.setup.logs, maxHeight: 220.0)]), default: SizedBox() },
+      ],
+    ),
+  ),
+  default: SetupShell(
+    icon: args.setup.icon,
+    title: args.setup.title,
+    message: args.setup.message,
+    child: SignInForm(form: args.setup.form),
+  ),
+};
+
+// ---- Add to playlist ----------------------------------------------------------------
+
+widget PlaylistPicker = Padding(
+  padding: [16.0, 0.0, 16.0, 16.0],
+  child: SizedBox(
+    height: 440.0,
+    child: Column(
+      crossAxisAlignment: "stretch",
+      children: [
+        ThemedText(text: "Add to Apple Music playlist", style: "headlineSmall"),
+        SizedBox(height: 12.0),
+        ChoiceCard(icon: "plus", title: "New playlist", subtitle: "Create one with this song in it.", onTap: event "create" {}),
+        SizedBox(height: 8.0),
+        Expanded(
+          child: switch data.status {
+            "loading": Loader(),
+            "error": Center(child: Message(text: data.error, color: "error")),
+            "empty": Center(child: Message(text: "You have no playlists you can add to yet.")),
+            default: MediaRowList(
+              items: data.items,
+              padding: 0.0,
+              hasMore: data.hasMore,
+              onLoadMore: event "more" {},
+              onTap: event "pick" {},
+            ),
+          },
+        ),
+      ],
+    ),
+  ),
+);

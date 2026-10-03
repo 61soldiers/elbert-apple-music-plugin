@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    branches: [main, dev, mvp]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Version, bundle Orchard, pack the .elbx and publish the release.
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      # The App pushes the `ci(release):` commit to the protected branch, and is
+      # the only bypass actor; it also reads the private orchard repository.
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            elbert-apple-music-plugin
+            orchard
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ steps.app-token.outputs.token }}
+
+      # package.json points the SDK at ../elbert-plugin-sdk (file:), so it has to
+      # sit beside this checkout. actions/checkout can only write inside the
+      # workspace, hence the move.
+      - uses: actions/checkout@v4
+        with:
+          repository: evolvedmesh/elbert-plugin-sdk
+          ref: ${{ vars.SDK_REF || 'main' }}
+          path: .sdk
+
+      - run: mv .sdk ../elbert-plugin-sdk
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchard
+          ref: ${{ vars.ORCHARD_SRC_REF || 'mvp' }}
+          token: ${{ steps.app-token.outputs.token }}
+          path: .orchard-src
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile --cwd ../elbert-plugin-sdk
+      - run: bun install --frozen-lockfile
+
+      # Typecheck, tests, Biome lint/format and the manifest/template check.
+      - run: bun run check
+
+      - name: Run Semantic Release
+        id: semrel
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          ORCHARD_SRC_DIR: ${{ github.workspace }}/.orchard-src
+        run: bunx --bun semantic-release

@@ -1,0 +1,154 @@
+// The Apple Music page in Elbert's Settings.
+
+import core;
+import material;
+import elbert;
+import common;
+
+widget SettingsPage = Column(
+  crossAxisAlignment: "stretch",
+  children: [
+    SettingsHeader(
+      icon: "music-4",
+      title: "Apple Music (Orchard)",
+      description: "Streams and downloads from your Apple Music subscription through Orchard, a small server that signs in as you.",
+      value: data.enabled,
+      onChanged: event "enabled" {},
+    ),
+    switch data.enabled {
+      true: Column(
+        crossAxisAlignment: "stretch",
+        children: [
+          SizedBox(height: 14.0),
+          switch data.canHost {
+            true: Align(
+              alignment: { x: -1.0, y: 0.0 },
+              child: Segmented(
+                selected: data.mode,
+                options: [
+                  { id: "managed", label: "Run it for me", icon: "container" },
+                  { id: "remote", label: "Remote server", icon: "globe" },
+                ],
+                onSelect: event "mode" {},
+              ),
+            ),
+            default: SizedBox(),
+          },
+          SizedBox(height: 12.0),
+          switch data.showManaged {
+            true: ManagedControls(),
+            default: RemoteFields(),
+          },
+          SizedBox(height: 16.0),
+          SessionCard(),
+          SizedBox(height: 16.0),
+          SwitchRow(title: "Listening history", subtitle: data.historyText, value: data.history, onChanged: event "history" {}),
+        ],
+      ),
+      default: SizedBox(),
+    },
+    // Needs no Orchard: it reads a file Apple sends you.
+    SizedBox(height: 24.0),
+    ThemedText(text: "Apple Music listening history", style: "bodyMedium"),
+    SizedBox(height: 2.0),
+    ThemedText(
+      style: "bodySmall",
+      color: "onSurfaceVariant",
+      text: "Brings in what you played in the Apple Music app on your iPhone, Mac and other devices. First, request a copy of your data at privacy.apple.com and choose \"Apple Media Services information\". When it arrives, unzip it and pick \"Apple Music Play Activity.csv\". You can check the results and choose where they go before anything is sent.",
+    ),
+    SizedBox(height: 10.0),
+    Align(
+      alignment: { x: -1.0, y: 0.0 },
+      child: Button(icon: "music-4", label: "Import play activity CSV", onPressed: event "importHistory" {}),
+    ),
+    switch data.hasImported {
+      true: Padding(padding: [0.0, 6.0, 0.0, 0.0], child: ThemedText(text: data.importedNote, style: "bodySmall", color: "onSurfaceVariant")),
+      default: SizedBox(),
+    },
+  ],
+);
+
+widget ManagedControls = Panel(
+  child: Column(
+    crossAxisAlignment: "start",
+    children: [
+      StatusLine(icon: data.managed.icon, tone: data.managed.tone, text: data.managed.text),
+      SizedBox(height: 10.0),
+      Wrap(
+        spacing: 8.0,
+        runSpacing: 8.0,
+        children: [
+          Button(variant: "outlined", icon: "refresh-cw", label: data.managed.startLabel, disabled: data.managed.busy, onPressed: event "managed" { id: "start" }),
+          switch data.managed.running {
+            true: Button(variant: "outlined", icon: "square", label: "Stop", disabled: data.managed.busy, onPressed: event "managed" { id: "stop" }),
+            default: SizedBox(),
+          },
+        ],
+      ),
+      SizedBox(height: 8.0),
+      ThemedText(text: "Open the Apple Music tab to finish signing in.", style: "bodySmall", color: "onSurfaceVariant"),
+    ],
+  ),
+);
+
+widget RemoteFields = Column(
+  crossAxisAlignment: "stretch",
+  children: [
+    TextInput(label: "Server URL", hint: "https://orchard.your-domain.com", icon: "link", keyboard: "url", value: data.url, resetKey: data.keyReset, onChanged: event "url" {}),
+    SizedBox(height: 10.0),
+    TextInput(
+      label: "API key",
+      hint: "••••••••••••••••",
+      icon: "key-round",
+      obscure: true,
+      value: data.key,
+      resetKey: data.keyReset,
+      onChanged: event "key" {},
+    ),
+    switch data.hasTest {
+      true: Padding(
+        padding: [0.0, 10.0, 0.0, 0.0],
+        child: StatusLine(icon: data.testIcon, tone: data.testTone, textColor: data.testTone, iconSize: 16.0, gap: 6.0, style: "bodySmall", text: data.testText),
+      ),
+      default: SizedBox(),
+    },
+    SizedBox(height: 12.0),
+    Wrap(
+      spacing: 8.0,
+      runSpacing: 8.0,
+      children: [
+        Button(variant: "outlined", icon: "plug", label: "Test connection", disabled: data.remoteBusy, onPressed: event "save" { test: true }),
+        Button(variant: "tonalFilled", icon: "save", label: "Save", disabled: data.remoteBusy, onPressed: event "save" { test: false }),
+      ],
+    ),
+  ],
+);
+
+widget SessionCard = Panel(
+  child: switch data.session.kind {
+    "ready": Column(
+      crossAxisAlignment: "start",
+      children: [
+        StatusLine(icon: data.session.icon, tone: data.session.tone, text: data.session.text),
+        switch data.session.noSubscription {
+          true: Padding(
+            padding: [0.0, 6.0, 0.0, 0.0],
+            child: ThemedText(text: "No active subscription was detected on this account.", style: "bodySmall", color: "onSurfaceVariant"),
+          ),
+          default: SizedBox(),
+        },
+        SizedBox(height: 10.0),
+        Button(variant: "outlined", icon: "log-out", label: "Log out", onPressed: event "logout" {}),
+      ],
+    ),
+    "signin": Column(
+      crossAxisAlignment: "stretch",
+      children: [
+        StatusLine(icon: data.session.icon, tone: data.session.tone, text: data.session.text),
+        SizedBox(height: 12.0),
+        SignInForm(form: data.session.form),
+      ],
+    ),
+    default: StatusLine(spinner: data.session.spinner, icon: data.session.icon, tone: data.session.tone, text: data.session.text),
+  },
+);

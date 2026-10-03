@@ -1,0 +1,116 @@
+// A catalog playlist, album or song.
+
+import core;
+import material;
+import elbert;
+
+widget DetailPage = switch data.status {
+  "loading": Loader(),
+  "error": ErrorView(message: data.error),
+  default: FloatingBar(
+    // Nothing unless the playlist turns out to be one of yours.
+    floating: switch data.hasOwned {
+      true: ActionRow(floating: true, actions: data.ownedActions, onAction: event "ownedAction" {}),
+      default: SizedBox(),
+    },
+    child: Stagger(
+      durationMs: 500,
+      child: ScrollPage(
+        topInset: false,
+        bottomInset: "dock",
+        slivers: [
+          StickyHeader(
+            title: data.title,
+            subtitle: data.subtitle,
+            type: data.type,
+            cover: data.cover,
+            info: data.info,
+            onPlayAll: event "play" { index: 0 },
+            onShuffle: event "shuffle" {},
+            onSubtitle: switch data.hasArtist { true: event "artist" {} },
+          ),
+          SliverBox(
+            child: Padding(
+              padding: [16.0, 20.0, 16.0, 0.0],
+              child: SlideIn(
+                delayMs: 150,
+                child: Column(
+                  crossAxisAlignment: "start",
+                  children: [
+                    Wrap(
+                      spacing: 12.0,
+                      runSpacing: 12.0,
+                      children: [
+                        Button(icon: "download", label: data.downloadLabel, busy: data.bulkActive, onPressed: event "downloadAll" {}),
+                        Button(icon: "folder-down", label: "Downloads", onPressed: event "downloads" {}),
+                        switch data.hasArtist {
+                          true: Button(icon: "user", label: "Artist", onPressed: event "artist" {}),
+                          default: SizedBox(),
+                        },
+                      ],
+                    ),
+                    // On a phone these float above the dock instead.
+                    switch data.hasOwned {
+                      true: switch data.layout.mobile {
+                        true: SizedBox(),
+                        default: Padding(
+                          padding: [0.0, 12.0, 0.0, 0.0],
+                          child: ActionRow(actions: data.ownedActions, onAction: event "ownedAction" {}),
+                        ),
+                      },
+                      default: SizedBox(),
+                    },
+                    switch data.hasNotes {
+                      true: Padding(
+                        padding: [0.0, 14.0, 0.0, 0.0],
+                        child: ExpandableText(text: data.notes, credit: data.credit, maxWidth: 640.0),
+                      ),
+                      default: SizedBox(),
+                    },
+                    switch data.hasBulk {
+                      true: Padding(
+                        padding: [0.0, 12.0, 0.0, 0.0],
+                        child: Column(
+                          crossAxisAlignment: "start",
+                          children: [
+                            ProgressLine(value: data.bulkProgress, caption: data.bulkCaption),
+                            switch data.hasBulkFolder {
+                              true: Padding(
+                                padding: [0.0, 8.0, 0.0, 0.0],
+                                child: Button(variant: "text", icon: "folder-open", label: "View Files", onPressed: event "viewFiles" {}),
+                              ),
+                              default: SizedBox(),
+                            },
+                          ],
+                        ),
+                      ),
+                      default: SizedBox(),
+                    },
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverBox(
+            child: Padding(
+              padding: [16.0, 24.0, 16.0, 16.0],
+              child: SlideIn(
+                delayMs: 200,
+                child: ThemedText(text: "Tracks", style: "titleLarge", weight: 600, size: 20.0),
+              ),
+            ),
+          ),
+          TrackList(
+            items: data.tracks,
+            hasMore: data.hasMore,
+            onLoadMore: event "more" {},
+            onPlay: event "play" {},
+            onArtist: event "artist" {},
+            onMenu: event "menu" {},
+          ),
+          SliverGap(height: 12.0),
+        ],
+      ),
+    ),
+  ),
+};

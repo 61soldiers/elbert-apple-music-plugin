@@ -1,0 +1,119 @@
+// The Downloads tab: search or paste a link, then every download job.
+
+import core;
+import material;
+import elbert;
+
+widget DownloadsPage = SectionScaffold(
+  tabs: data.tabs,
+  current: data.current,
+  title: "Downloads",
+  actions: data.actions,
+  onAction: event "action" {},
+  child: Stagger(
+    durationMs: 500,
+    child: ScrollPage(
+      topInset: false,
+      bottomInset: "dock",
+      slivers: [
+        SliverBox(
+          child: PageInset(
+            top: 16.0,
+            child: SlideIn(
+              delayMs: 0,
+              child: SearchField(
+                hint: "Search, or paste an Apple Music link…",
+                debounceMs: 0,
+                resetKey: data.resetKey,
+                onQuery: event "query" {},
+                onClear: event "clear" {},
+              ),
+            ),
+          ),
+        ),
+        SliverBox(
+          child: switch data.mode {
+            "busy": Padding(padding: [24.0, 24.0, 24.0, 24.0], child: Loader(expand: false, height: 64.0)),
+            "error": PageInset(top: 16.0, child: ThemedText(text: data.error, style: "bodySmall", color: "error")),
+            "link": switch data.hasLink {
+              true: PageInset(
+                top: 14.0,
+                child: FeatureCard(
+                  cover: data.link.cover,
+                  badge: data.link.badge,
+                  badgeIcon: "link",
+                  title: data.link.title,
+                  subtitle: data.link.subtitle,
+                  note: data.link.note,
+                  busy: data.link.busy,
+                  buttonLabel: "Download",
+                  onPressed: event "downloadLink" {},
+                ),
+              ),
+              default: SizedBox(),
+            },
+            "results": PageInset(
+              top: 14.0,
+              child: Column(
+                crossAxisAlignment: "stretch",
+                children: [
+                  ...for r in data.results:
+                    Padding(
+                      padding: [0.0, 0.0, 0.0, 8.0],
+                      child: ResultTile(
+                        cover: r.cover,
+                        title: r.title,
+                        subtitle: r.subtitle,
+                        typeIcon: r.typeIcon,
+                        busy: r.busy,
+                        onAction: event "download" { index: r.index },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            default: SizedBox(),
+          },
+        ),
+        SliverBox(
+          child: PageInset(
+            top: 28.0,
+            bottom: 12.0,
+            child: SlideIn(delayMs: 80, child: ThemedText(text: "Download records", style: "titleMedium", weight: 700)),
+          ),
+        ),
+        SliverBox(
+          child: PageInset(
+            bottom: 24.0,
+            child: switch data.hasRecords {
+              true: Column(
+                crossAxisAlignment: "stretch",
+                children: [
+                  ...for r in data.records:
+                    Padding(
+                      padding: [0.0, 0.0, 0.0, 10.0],
+                      child: JobCard(
+                        title: r.title,
+                        subtitle: r.subtitle,
+                        cover: r.cover,
+                        status: r.status,
+                        statusIcon: r.statusIcon,
+                        statusTone: r.statusTone,
+                        progress: r.progress,
+                        failed: r.failed,
+                        lines: r.lines,
+                        onViewFiles: switch r.hasFolder { true: event "viewFiles" { id: r.id } },
+                        onCancel: switch r.active { true: event "cancel" { id: r.id } },
+                        onDismiss: event "dismiss" { id: r.id },
+                      ),
+                    ),
+                ],
+              ),
+              default: EmptyCard(icon: "folder-down", title: "No downloads yet", text: "Search above, or download from a playlist or album page."),
+            },
+          ),
+        ),
+      ],
+    ),
+  ),
+);

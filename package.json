@@ -1,0 +1,32 @@
+{
+  "name": "elbert-apple-music",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "Apple Music for Elbert, through a self-hosted Orchard server.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "elbert-plugin build",
+    "dev": "elbert-plugin dev",
+    "test": "bun test",
+    "typecheck": "tsc -p . && tsc -p test",
+    "lint": "biome check .",
+    "fix": "biome check --write .",
+    "check": "bun run typecheck && bun test && bun run lint && elbert-plugin check",
+    "pack": "elbert-plugin pack --to release",
+    "fetch-orchard": "bash tool/fetch_orchard_src.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/61soldiers/elbert-apple-music-plugin.git"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@evolvedmesh/elbert-plugin-sdk": "file:../elbert-plugin-sdk",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@types/bun": "latest",
+    "semantic-release": "^25.0.9",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,76 @@
+// The Search tab: a debounced field, then songs as rows and artists, albums
+// and playlists as card strips.
+
+import core;
+import material;
+import elbert;
+
+widget SearchPage = SectionScaffold(
+  tabs: data.tabs,
+  current: data.current,
+  title: "Search",
+  child: Column(
+    crossAxisAlignment: "stretch",
+    children: [
+      PageInset(
+        bottom: 8.0,
+        child: SearchField(hint: "Search Apple Music…", debounceMs: 400, onQuery: event "query" {}),
+      ),
+      Expanded(
+        // Results scroll under the field — clip them at it.
+        child: BleedClip(
+          child: switch data.status {
+            "loading": Loader(),
+            "ready": PageInset(
+              child: ScrollList(
+                bleed: true,
+                padding: [0.0, 4.0, 0.0, 0.0],
+                children: [
+                  switch data.hasSongs {
+                    true: Column(
+                      crossAxisAlignment: "stretch",
+                      children: [
+                        ResultTitle(text: "Songs"),
+                        ...for s in data.songs:
+                          MediaRow(title: s.title, subtitle: s.subtitle, cover: s.cover, onTap: event "song" { index: s.index }),
+                        SizedBox(height: 20.0),
+                      ],
+                    ),
+                    default: SizedBox(),
+                  },
+                  switch data.hasArtists {
+                    true: ResultStrip(title: "Artists", items: data.artists, onTap: event "artist" {}),
+                    default: SizedBox(),
+                  },
+                  switch data.hasAlbums {
+                    true: ResultStrip(title: "Albums", items: data.albums, onTap: event "album" {}),
+                    default: SizedBox(),
+                  },
+                  switch data.hasPlaylists {
+                    true: ResultStrip(title: "Playlists", items: data.playlists, onTap: event "playlist" {}),
+                    default: SizedBox(),
+                  },
+                ],
+              ),
+            ),
+            default: EmptyState(icon: data.icon, text: data.message),
+          },
+        ),
+      ),
+    ],
+  ),
+);
+
+widget ResultTitle = Padding(
+  padding: [0.0, 4.0, 0.0, 10.0],
+  child: ThemedText(text: args.text, style: "titleMedium", weight: 700),
+);
+
+widget ResultStrip = Column(
+  crossAxisAlignment: "stretch",
+  children: [
+    ResultTitle(text: args.title),
+    CardRail(size: "compact", spacing: 12.0, items: args.items, onTap: args.onTap),
+    SizedBox(height: 20.0),
+  ],
+);

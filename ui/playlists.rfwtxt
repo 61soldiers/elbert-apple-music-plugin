@@ -1,0 +1,42 @@
+// Every library playlist — the Library tab's "See all".
+
+import core;
+import material;
+import elbert;
+
+widget PlaylistsBody = switch args.status {
+  "loading": Loader(),
+  "error": Message(text: args.error),
+  "empty": Message(text: "No playlists in your Apple Music library yet."),
+  default: CardGrid(
+    items: args.items,
+    hasMore: args.hasMore,
+    refreshEvent: "refresh",
+    onLoadMore: event "more" {},
+    onTap: event "open" {},
+  ),
+};
+
+// A phone floats New playlist above the dock; desktop has no sub-nav to hang
+// it on here, so it sits in the header beside the back button.
+widget PlaylistsPage = switch data.layout.mobile {
+  true: SectionScaffold(
+    tabs: data.tabs,
+    current: data.current,
+    title: "Playlists",
+    actions: data.actions,
+    onAction: event "action" {},
+    child: PlaylistsBody(status: data.status, error: data.error, items: data.items, hasMore: data.hasMore),
+  ),
+  default: Column(
+    crossAxisAlignment: "stretch",
+    children: [
+      TopInset(),
+      Padding(
+        padding: [24.0, 0.0, 24.0, 8.0],
+        child: PageHeader(title: "Playlists", actions: data.actions, onAction: event "action" {}),
+      ),
+      Expanded(child: PlaylistsBody(status: data.status, error: data.error, items: data.items, hasMore: data.hasMore)),
+    ],
+  ),
+};

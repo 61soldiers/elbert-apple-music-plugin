@@ -1,0 +1,188 @@
+// Apple Music Replay: a year (the Replay tab, with a year picker) and a
+// month (opened from the year's chart). Both draw ReplayBody from
+// `data.body`, built by replayBody() in src/pages/replay.ts.
+
+import core;
+import material;
+import elbert;
+
+widget ReplayPage = SectionScaffold(
+  tabs: data.tabs,
+  current: data.current,
+  title: "Replay",
+  child: switch data.status {
+    "loading": Loader(),
+    "error": ErrorView(message: data.error),
+    "empty": EmptyState(
+      icon: "chart-no-axes-column",
+      title: "No Replay yet",
+      text: "Apple builds a Replay once the account has listening history. Elbert's own statistics are under Statistics in the sidebar.",
+    ),
+    default: Column(
+      crossAxisAlignment: "stretch",
+      children: [
+        PageInset(desktop: 16.0, bottom: 12.0, child: ChipPicker(options: data.years, selected: data.selected, onSelect: event "select" {})),
+        // Its own clip: the picker above is part of the page, so without one
+        // the summary scrolls up over it.
+        Expanded(child: BleedClip(child: ReplayBodyView())),
+      ],
+    ),
+  },
+);
+
+widget ReplayMonthPage = switch data.status {
+  "loading": Loader(),
+  "error": ErrorView(message: data.error),
+  default: Column(
+    crossAxisAlignment: "stretch",
+    children: [
+      TopInset(),
+      PageInset(bottom: 4.0, child: PageHeader(title: data.title)),
+      Expanded(child: BleedClip(child: ReplayBodyView())),
+    ],
+  ),
+};
+
+widget ReplayBodyView = switch data.bodyStatus {
+  "loading": Loader(),
+  "error": ErrorView(message: data.bodyError, back: false),
+  default: Stagger(
+    durationMs: 900,
+    restartKey: data.body.summaryId,
+    child: ScrollPage(
+      topInset: false,
+      bleed: true,
+      refreshEvent: "refresh",
+      slivers: [
+        SliverBox(
+          child: SlideIn(
+            delayMs: 60,
+            child: PageInset(
+              desktop: 20.0,
+              top: 4.0,
+              bottom: 20.0,
+              child: StatHero(caption: data.body.hero.caption, value: data.body.hero.value, unit: data.body.hero.unit, note: data.body.hero.note),
+            ),
+          ),
+        ),
+        switch data.body.hasCounts {
+          true: SliverBox(child: SlideIn(delayMs: 120, child: PageInset(desktop: 20.0, bottom: 28.0, child: CountTiles(tiles: data.body.counts)))),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasPlaylist {
+          true: SliverBox(
+            child: SlideIn(
+              delayMs: 180,
+              child: PageInset(
+                desktop: 20.0,
+                bottom: 28.0,
+                child: LinkCard(icon: "list-music", title: data.body.playlistName, subtitle: "Apple's playlist of your most played", onTap: event "playlist" {}),
+              ),
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasMonths {
+          true: ReplaySection(
+            delayMs: 240,
+            title: "Month by month",
+            child: PageInset(
+              desktop: 20.0,
+              child: BarChart(bars: data.body.months, caption: data.body.monthsCaption, animationKey: data.body.summaryId, onTap: event "month" {}),
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        // Apple ranks by year only — say why a month has no rankings.
+        switch data.body.monthNote {
+          true: SliverBox(
+            child: SlideIn(
+              delayMs: 240,
+              child: PageInset(
+                desktop: 20.0,
+                bottom: 28.0,
+                child: NoteCard(
+                  title: "Apple only ranks by year",
+                  text: "A month gets its own listening time and counts, but top songs, artists and albums are only computed for the whole year.",
+                  buttonLabel: "See the year's rankings",
+                  buttonIcon: "chart-no-axes-column",
+                  onPressed: event "yearRankings" {},
+                ),
+              ),
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasArtists {
+          true: ReplaySection(delayMs: 300, title: "Top artists", child: ReplayRail(items: data.body.artists, rail: "artists")),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasSongs {
+          true: ReplaySection(
+            delayMs: 360,
+            title: "Top songs",
+            child: RankList(
+              items: data.body.songs,
+              padding: switch data.layout.mobile { true: 0.0, default: 20.0 },
+              onTap: event "open" { rail: "songs" },
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasAlbums {
+          true: ReplaySection(delayMs: 420, title: "Top albums", child: ReplayRail(items: data.body.albums, rail: "albums")),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasGenres {
+          true: ReplaySection(delayMs: 480, title: "Top genres", child: PageInset(desktop: 20.0, child: ShareBars(items: data.body.genres))),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasPlaylists {
+          true: ReplaySection(delayMs: 540, title: "Top playlists", child: ReplayRail(items: data.body.playlists, rail: "playlists")),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasStations {
+          true: ReplaySection(delayMs: 600, title: "Top stations", child: ReplayRail(items: data.body.stations, rail: "stations")),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.body.hasMilestones {
+          true: ReplaySection(
+            delayMs: 660,
+            title: "Milestones",
+            child: BadgeRail(items: data.body.milestones, padding: switch data.layout.mobile { true: 0.0, default: 20.0 }),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+      ],
+    ),
+  ),
+};
+
+// A titled block of the body, as a sliver.
+widget ReplaySection = SliverBox(
+  child: SlideIn(
+    delayMs: args.delayMs,
+    child: Padding(
+      padding: [0.0, 0.0, 0.0, 28.0],
+      child: Column(
+        crossAxisAlignment: "stretch",
+        children: [
+          PageInset(
+            desktop: 20.0,
+            bottom: 14.0,
+            child: ThemedText(text: args.title, style: "headlineSmall", weight: 700, size: 21.0),
+          ),
+          args.child,
+        ],
+      ),
+    ),
+  ),
+);
+
+widget ReplayRail = CardRail(
+  size: "replay",
+  spacing: 14.0,
+  innerPadding: switch data.layout.mobile { true: 0.0, default: 20.0 },
+  items: args.items,
+  onTap: event "open" { rail: args.rail },
+);

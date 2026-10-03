@@ -1,0 +1,114 @@
+// The Library tab (one page of sections) and the flat Songs / Albums /
+// Artists lists it links to.
+
+import core;
+import material;
+import elbert;
+
+widget LibraryPage = SectionScaffold(
+  tabs: data.tabs,
+  current: data.current,
+  // On a phone New playlist would float over the grid; it is on the
+  // Playlists page there, one tap away via "See all".
+  actions: switch data.layout.mobile { true: [], default: data.actions },
+  onAction: event "action" {},
+  child: ScrollPage(
+    topInset: false,
+    bleed: true,
+    refreshEvent: "refresh",
+    slivers: [
+      switch data.layout.mobile {
+        true: SliverBox(child: Padding(padding: [0.0, 0.0, 0.0, 18.0], child: PageHeader(title: "Library"))),
+        default: SliverGap(height: 6.0),
+      },
+
+      // Pins: a compact strip of shortcuts, not a shelf.
+      switch data.hasPins {
+        true: SliverBox(
+          child: PageInset(
+            bottom: 28.0,
+            child: Column(
+              crossAxisAlignment: "stretch",
+              children: [
+                SectionHeading(title: "Pinned"),
+                PinStrip(items: data.pins, onTap: event "pin" {}),
+              ],
+            ),
+          ),
+        ),
+        default: SliverGap(height: 0.0),
+      },
+
+      SliverBox(
+        child: PageInset(
+          bottom: 28.0,
+          child: Column(
+            crossAxisAlignment: "stretch",
+            children: [
+              SectionHeading(title: "Playlists", onSeeAll: event "seeAllPlaylists" {}),
+              switch data.playlistsStatus {
+                "loading": Loader(expand: false, height: 220.0),
+                "error": Message(text: data.playlistsError),
+                "empty": Message(text: "No playlists yet."),
+                default: CardRail(size: "home", titleLines: 1, items: data.playlists, onTap: event "playlist" {}),
+              },
+            ],
+          ),
+        ),
+      ),
+
+      // The flat lists. The phone dock has no slot to spare, so this is how
+      // Songs and Artists stay reachable there — Apple's own Library shape.
+      PageInset(sliver: true, bottom: 28.0, child: CategoryTiles(sliver: true, items: data.tiles, onTap: event "tile" {})),
+
+      SliverBox(child: PageInset(child: SectionHeading(title: "Recently Added"))),
+      switch data.recentStatus {
+        "loading": SliverBox(child: Loader(expand: false, height: 120.0)),
+        "error": SliverBox(child: Message(text: data.recentError)),
+        "empty": SliverBox(child: Message(text: "No albums in your library.")),
+        default: PageInset(
+          sliver: true,
+          child: CardGrid(
+            sliver: true,
+            titleLines: 1,
+            items: data.recent,
+            hasMore: data.recentHasMore,
+            onLoadMore: event "more" {},
+            onTap: event "album" {},
+          ),
+        ),
+      },
+    ],
+  ),
+);
+
+widget LibraryListPage = Column(
+  crossAxisAlignment: "stretch",
+  children: [
+    TopInset(),
+    PageInset(bottom: 8.0, child: PageHeader(title: data.title)),
+    Expanded(
+      child: switch data.status {
+        "loading": Loader(),
+        "error": Message(text: data.error),
+        "empty": Message(text: data.empty),
+        default: switch data.kind {
+          "songs": MediaRowList(
+            items: data.items,
+            hasMore: data.hasMore,
+            refreshEvent: "refresh",
+            onLoadMore: event "more" {},
+            onTap: event "tap" {},
+          ),
+          default: CardGrid(
+            items: data.items,
+            hasMore: data.hasMore,
+            refreshEvent: "refresh",
+            onLoadMore: event "more" {},
+            onTap: event "tap" {},
+          ),
+        },
+      },
+    ),
+  ],
+);
