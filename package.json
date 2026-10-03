@@ -1,8 +1,8 @@
 {
-  "name": "elbert-apple-music",
-  "version": "0.0.0-development",
+  "name": "elbert-apple-music-plugin",
+  "version": "0.1.0",
   "private": true,
-  "description": "Apple Music for Elbert, through a self-hosted Orchard server.",
+  "description": "Plugin for elbert music player that adds a simple apple music client",
   "license": "MIT",
   "type": "module",
   "scripts": {

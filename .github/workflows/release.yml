@@ -20,24 +20,10 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      # The App pushes the `ci(release):` commit to the protected branch, and is
-      # the only bypass actor; it also reads the private orchard repository.
-      - name: Generate App token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: |
-            elbert-apple-music-plugin
-            orchard
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
-          token: ${{ steps.app-token.outputs.token }}
 
       # package.json points the SDK at ../elbert-plugin-sdk (file:), so it has to
       # sit beside this checkout. actions/checkout can only write inside the
@@ -54,7 +40,9 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/orchard
           ref: ${{ vars.ORCHARD_SRC_REF || 'mvp' }}
-          token: ${{ steps.app-token.outputs.token }}
+          # orchard is private: the built-in token can't read it, so this is a
+          # fine-grained PAT with read-only Contents access to that one repo.
+          token: ${{ secrets.ORCHARD_READ_TOKEN }}
           path: .orchard-src
 
       - uses: oven-sh/setup-bun@v2
@@ -68,6 +56,6 @@ jobs:
       - name: Run Semantic Release
         id: semrel
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORCHARD_SRC_DIR: ${{ github.workspace }}/.orchard-src
         run: bunx --bun semantic-release
