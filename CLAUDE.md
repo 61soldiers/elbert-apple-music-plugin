@@ -1,7 +1,7 @@
 # Elbert Apple Music plugin
 
 Apple Music for [Elbert](../elbert), as an Elbert plugin. Elbert never talks to Apple: this plugin
-talks to **Orchard** (`61soldiers/orchard`, branch `mvp`), a self-hosted server that signs in to a
+talks to **Orchard** (`61soldiers/orchard`, branch `main`), a self-hosted server that signs in to a
 real Apple Music subscription and can stream, download and edit the library. This code used to be
 compiled into Elbert behind `ENABLE_APPLE_MUSIC`. It must keep looking and behaving exactly as it
 did then, and existing users' setups must carry on untouched.
@@ -93,7 +93,7 @@ workflow checks out `@evolvedmesh/elbert-plugin-sdk` beside this repo, because `
     preserved across source refreshes.
   - The signed-in Apple session lives in the project's Docker volume, so recreating the container
     keeps it.
-- **Orchard changes** are committed to orchard `mvp`, and then the bundle is regenerated. Copying
+- **Orchard changes** are committed to orchard `main`, and then the bundle is regenerated. Copying
   files into a running managed container is a debugging shortcut that lives on one machine.
 
 ## Orchard, managed

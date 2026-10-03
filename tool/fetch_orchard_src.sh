@@ -7,13 +7,12 @@
 # `npm run build`/`npm run pack`, and in release CI.
 #
 #   ORCHARD_SRC_REPO   git URL to clone   (default: the public Orchard repo)
-#   ORCHARD_SRC_REF    branch/tag/commit  (default: mvp — the only branch with
-#                      Orchard's server code today; main/dev don't have it yet)
+#   ORCHARD_SRC_REF    branch/tag/commit  (default: main)
 #   ORCHARD_SRC_DIR    use this local checkout instead of cloning (offline dev)
 set -euo pipefail
 
 REPO=${ORCHARD_SRC_REPO:-https://github.com/61soldiers/orchard.git}
-REF=${ORCHARD_SRC_REF:-mvp}
+REF=${ORCHARD_SRC_REF:-main}
 
 here=$(cd "$(dirname "$0")/.." && pwd)
 out_dir="$here/assets/orchard"

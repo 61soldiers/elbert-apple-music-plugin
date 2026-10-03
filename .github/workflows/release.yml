@@ -39,10 +39,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchard
-          ref: ${{ vars.ORCHARD_SRC_REF || 'mvp' }}
-          # orchard is private: the built-in token can't read it, so this is a
-          # fine-grained PAT with read-only Contents access to that one repo.
-          token: ${{ secrets.ORCHARD_READ_TOKEN }}
+          ref: ${{ vars.ORCHARD_SRC_REF || 'main' }}
           path: .orchard-src
 
       - uses: oven-sh/setup-bun@v2
