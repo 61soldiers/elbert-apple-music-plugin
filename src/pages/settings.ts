@@ -40,6 +40,8 @@ function managedLine(phase: Phase): [icon: string, tone: string, text: string] {
   switch (phase) {
     case 'healthy':
       return ['circle-check', 'primary', `Running on ${managed.serverUrl}`];
+    case 'downloading':
+      return ['download', 'primary', 'Downloading…'];
     case 'starting':
     case 'extracting':
       return ['loader-circle', 'primary', 'Starting…'];

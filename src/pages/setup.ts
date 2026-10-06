@@ -186,6 +186,8 @@ const failure = (title: string, message: string, retry?: string, retryLabel = 'T
 function managedStep(phase: Phase): Step {
   switch (phase) {
     case 'idle':
+    case 'downloading':
+      return busy('download', 'Getting Apple Music ready', managed.message ?? 'Downloading what Apple Music needs. This happens once.');
     case 'extracting':
       return busy('package-open', 'Preparing Orchard…');
     case 'migrating':
