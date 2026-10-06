@@ -58,6 +58,31 @@ jobs:
       - run: go vet ./... && go test ./...
       - run: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o orchard ./cmd/orchard && ls -la orchard
 
+  # The Linux and Windows QEMU builds, exactly as the release workflow runs them.
+  qemu-linux-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: linux-amd64, os: ubuntu-24.04, target: linux }
+          - { id: linux-arm64, os: ubuntu-24.04-arm, target: linux }
+          - { id: windows-amd64, os: ubuntu-24.04, target: windows }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tool/qemu/build.sh ${{ matrix.target }} out
+      - run: |
+          tar -czf qemu.tar.gz -C out . && ls -la qemu.tar.gz && du -sh out/*
+          if [ "${{ matrix.target }}" = linux ]; then
+            file out/qemu-system-x86_64 || true
+            out/qemu-system-x86_64 --version
+            out/qemu-system-x86_64 -accel help
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-${{ matrix.id }}
+          path: qemu.tar.gz
+
   # QEMU built for the Mac, then the real thing: boot the guest with Apple's daemon.
   qemu-macos:
     needs: guest
