@@ -38,7 +38,7 @@ else
 	base_url="https://github.com/$RELEASE_REPO/releases/download/v$VERSION"
 fi
 rm -rf "$dest" "$here/assets/runtime" "$here/assets/orchard" "$here/assets/guest" "$here/assets/qemu"
-mkdir -p "$dest"
+mkdir -p "$dest" "$here/assets" # assets/ holds nothing tracked, so a fresh checkout has no such folder
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
