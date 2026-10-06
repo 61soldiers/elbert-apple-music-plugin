@@ -23,7 +23,7 @@ set -euo pipefail
 VERSION=${1:-dev}
 REPO=${ORCHARD_SRC_REPO:-https://github.com/61soldiers/orchard.git}
 REF=${ORCHARD_SRC_REF:-main}
-TARGETS=${TARGETS:-"linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"}
+TARGETS=${TARGETS:-"linux/amd64 linux/arm64 darwin/arm64 windows/amd64"}
 RELEASE_REPO=${RELEASE_REPO:-61soldiers/elbert-apple-music-plugin}
 
 here=$(cd "$(dirname "$0")/.." && pwd)

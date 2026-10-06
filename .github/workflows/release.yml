@@ -12,19 +12,18 @@ permissions:
   contents: read
 
 jobs:
-  # QEMU for each platform, built from source with only what Apple Music's guest
-  # needs (about 5 MB compressed each). The result is cached on the build script, so
-  # a release that doesn't change it doesn't rebuild it.
+  # QEMU for the platforms that run Apple's daemon in a VM: Windows and Apple-silicon
+  # Macs, built from source with only what the guest needs (about 4 MB compressed
+  # each). Linux uses user namespaces and needs none; Intel Macs aren't supported. The
+  # result is cached on the build script, so a release that doesn't change it doesn't
+  # rebuild it.
   qemu:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { id: linux-amd64, os: ubuntu-24.04, target: linux }
-          - { id: linux-arm64, os: ubuntu-24.04-arm, target: linux }
           - { id: windows-amd64, os: ubuntu-24.04, target: windows }
           - { id: darwin-arm64, os: macos-14, target: macos }
-          - { id: darwin-amd64, os: macos-15-intel, target: macos }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
