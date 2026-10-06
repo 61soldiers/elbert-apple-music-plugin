@@ -7,10 +7,12 @@
 // a child process of Elbert. There is no container, no Docker and nothing to install.
 //
 // Apple's daemon is an Android program, so it needs a Linux kernel:
-//  - Linux: Orchard sandboxes it with user namespaces itself (pack: orchard).
-//  - macOS, Windows, and Linux systems that block namespaces: it runs in a small
-//    Linux virtual machine under a QEMU that ships in the vm pack (QEMU, the guest
-//    kernel and its image), which Orchard drives.
+//  - Linux: Orchard sandboxes it with user namespaces itself (pack: orchard). Where
+//    the system blocks that (Ubuntu 24.04+ by default) the user is told the one
+//    sysctl line that allows it: there is no VM pack for Linux.
+//  - macOS (Apple silicon) and Windows: it runs in a small Linux virtual machine
+//    under a QEMU that ships in the vm pack (QEMU, the guest kernel and its image),
+//    which Orchard drives. Intel Macs have no pack, so they use a remote Orchard.
 //
 // Everything keeps the paths and names Elbert used before Apple Music became a
 // plugin — `<appSupport>/orchard`, the API key in a `.env` — so a signed-in
@@ -38,6 +40,20 @@ const RESTART_WINDOW_MS = 5 * 60_000;
 class SetupError extends Error {}
 /** Orchard says the daemon can't be hosted with what is there. */
 class SandboxError extends SetupError {}
+/** The release has no such runtime pack for this platform (it isn't built for it). */
+class MissingPackError extends SetupError {
+  constructor(readonly pack: string) {
+    super(`Apple Music's built-in server isn't available for this system (no ${pack} runtime). Connect to a remote Orchard server instead.`);
+  }
+}
+
+/** What to tell a Linux user whose system blocks the sandbox and has no VM pack to fall back on. */
+const SANDBOX_HELP =
+  'Your system has to allow it, once. In a terminal, run the line that matches your system, then try again:\n' +
+  '  Ubuntu 24.04 and newer:  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0\n' +
+  '  Debian, or an older kernel:  sudo sysctl -w kernel.unprivileged_userns_clone=1\n' +
+  '  Any distro, if that is already on:  sudo sysctl -w user.max_user_namespaces=15000\n' +
+  'To keep it across reboots, put the same setting (without "sudo sysctl -w", as name=value) in a file under /etc/sysctl.d/.';
 
 interface RuntimeManifest {
   baseUrl: string;
@@ -329,7 +345,7 @@ class NativeBackend implements Backend {
    */
   private async ensurePack(name: string, dest: string, exeName: string) {
     const entry = (await this.manifest()).packs[name];
-    if (!entry) throw new SetupError(`This copy of the Apple Music plugin has no ${name} runtime for this system.`);
+    if (!entry) throw new MissingPackError(name);
     const marker = elbert.fs.join(dest, '.pack');
     if ((await elbert.fs.readText(marker))?.trim() === entry.sha256 && (await elbert.fs.exists(elbert.fs.join(dest, exeName)))) return;
 
@@ -443,7 +459,13 @@ class NativeBackend implements Backend {
       return await this.checkSandbox({});
     } catch (first) {
       if (!(first instanceof SandboxError)) throw first;
-      await this.ensureVm();
+      try {
+        await this.ensureVm();
+      } catch (e) {
+        // No VM to fall back on for Linux (it is not built: namespaces are the way here).
+        if (e instanceof MissingPackError) throw new SetupError(`${first.message}\n\n${SANDBOX_HELP}`);
+        throw e;
+      }
       await this.checkSandbox(this.vmEnv());
       this.useVm = true;
     }

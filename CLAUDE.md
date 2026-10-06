@@ -110,13 +110,16 @@ to install.
   `tool/build_runtime.sh`) pins each by sha256; the plugin checks it with the OS's own tool (`sha256sum`,
   `shasum`, `certutil`; there is no hashing in the plugin API). A development build bundles the packs in
   `assets/runtime/` and skips the download. Packs: `orchard-<os>-<arch>` (~7.5 MB, everywhere) and
-  `vm-<os>-<arch>` (QEMU + the guest kernel/image, ~19 MB, fetched only where needed).
+  `vm-<os>-<arch>` (QEMU + the guest kernel/image, ~18 MB, macOS and Windows only).
 - **Linux** sandboxes the daemon with user namespaces (Orchard does it) and downloads only the orchard pack.
-  Where namespaces are blocked (`orchard __check-sandbox` fails: Ubuntu 24.04+) the plugin fetches the vm pack
-  and Orchard runs the daemon in a VM instead, carrying a migrated Docker session into the guest's disk.
-  **macOS and Windows** always use the VM. QEMU is built from source with only what the guest needs
-  (`tool/qemu/build.sh`, static ~5 MB compressed on Linux; TCG everywhere but KVM on Linux and HVF on Intel
-  Macs; no WHPX). Details and the traps are in Orchard's CLAUDE.md.
+  There is **no VM pack for Linux**: where namespaces are blocked (`orchard __check-sandbox` fails: Ubuntu
+  24.04+ by default) the plugin shows the one `sysctl` line that allows it (`SANDBOX_HELP`). (Orchard can still
+  host the daemon in a VM on Linux if a host supplies QEMU, and migrates a file session into the guest; the
+  plugin just doesn't ship that fallback, to save a QEMU build, a 19 MB pack and ~400 MB of RAM.)
+  **macOS (Apple silicon) and Windows** always use the VM. **Intel Macs are not supported** (no pack): they get
+  a clear "connect to a remote Orchard" message. QEMU is built from source with only what the guest needs
+  (`tool/qemu/build.sh`; Windows ~4 MB and macOS ~3.7 MB compressed; TCG only on both). Details and the traps
+  are in Orchard's CLAUDE.md.
 - **Only Linux has a Docker volume to move over**; macOS/Windows users sign in again. (If an old Docker
   container is still holding port 8080 there, it is used as it is, like any hand-run Orchard.)
 - **Android is not wired up yet** (the SDK's runtime-pack path; Orchard's proot launch exists).

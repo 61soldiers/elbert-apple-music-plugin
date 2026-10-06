@@ -8,10 +8,11 @@ history.
 > **For personal use only.** Don't share what it downloads, and don't use it commercially. Read the
 > [disclaimer](DISCLAIMER.md) first.
 
-- **Desktop only** (Linux, Windows, macOS). The plugin runs Orchard for you, with nothing to install: no
-  Docker, no ffmpeg. Apple's daemon is an Android program, so on Linux Orchard sandboxes it with user
-  namespaces, and on Windows and macOS (or a Linux system that blocks those) it runs in a small virtual
-  machine under a QEMU the plugin ships. You can still point it at an Orchard you run yourself.
+- **Desktop only** (Linux, Windows, Apple-silicon Macs). The plugin runs Orchard for you, with nothing to
+  install: no Docker, no ffmpeg. Apple's daemon is an Android program, so on Linux Orchard sandboxes it with
+  user namespaces (a few systems, e.g. Ubuntu 24.04+, need one `sysctl` line to allow that, which the plugin
+  tells you), and on Windows and macOS it runs in a small virtual machine under a QEMU the plugin downloads.
+  Intel Macs aren't supported. You can still point the plugin at an Orchard you run yourself.
 - It also imports your Apple Music listening history from Apple's privacy export into Elbert's
   statistics. (Not Last.fm: it refuses plays older than 14 days, and an export is always older.)
 
