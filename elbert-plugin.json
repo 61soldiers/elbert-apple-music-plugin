@@ -1,7 +1,7 @@
 {
   "id": "io.github.61soldiers.elbert.apple-music",
   "name": "Apple Music",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "apiVersion": 1,
   "description": "Stream, download and browse your Apple Music subscription through Orchard, a self-hosted server that signs in as you.",
   "author": "61soldiers",
@@ -31,7 +31,11 @@
     "lyrics",
     "history"
   ],
-  "platforms": ["linux", "windows", "macos"],
+  "platforms": [
+    "linux",
+    "windows",
+    "macos"
+  ],
   "migrate": {
     "settingsKeys": [
       "orchardEnabled",
@@ -39,8 +43,12 @@
       "orchardManaged",
       "orchardPlayHistoryEnabled"
     ],
-    "secureKeys": ["orchard_api_key"],
+    "secureKeys": [
+      "orchard_api_key"
+    ],
     "playlistLinks": true,
-    "legacySources": ["appleMusic"]
+    "legacySources": [
+      "appleMusic"
+    ]
   }
 }
