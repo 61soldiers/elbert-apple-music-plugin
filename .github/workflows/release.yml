@@ -12,8 +12,25 @@ permissions:
   contents: read
 
 jobs:
-  # Version, bundle Orchard, pack the .elbx and publish the release.
+  # QEMU for macOS, one bundle per CPU: it has to be made on a Mac, and Apple
+  # Silicon and Intel are different runners.
+  qemu-macos:
+    strategy:
+      matrix:
+        os: [macos-14, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tool/package_qemu_macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-${{ matrix.os }}
+          path: assets/qemu/darwin-*.tar.gz
+          if-no-files-found: error
+
+  # Version, build and bundle Orchard, pack the .elbx and publish the release.
   release:
+    needs: qemu-macos
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -42,7 +59,22 @@ jobs:
           ref: ${{ vars.ORCHARD_SRC_REF || 'main' }}
           path: .orchard-src
 
+      # QEMU for macOS, built above.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qemu-*
+          path: assets/qemu
+          merge-multiple: true
+
+      # The Windows QEMU bundle and the VM guest are built here, on Linux.
+      - run: sudo apt-get update && sudo apt-get install -y p7zip-full e2fsprogs binutils
+
       - uses: oven-sh/setup-bun@v2
+
+      # tool/build_orchard.sh compiles Orchard for each platform it ships.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .orchard-src/go.mod
 
       - run: bun install --frozen-lockfile --cwd ../elbert-plugin-sdk
       - run: bun install --frozen-lockfile

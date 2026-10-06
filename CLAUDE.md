@@ -38,7 +38,7 @@ watches the folder and restarts the plugin on rebuild. Use `bun run dev` for wat
 ```
 src/
   orchard/client.ts    Orchard REST client + models (mirrors orchard/docs/reference.md)
-  orchard/managed.ts   running Orchard for the user in Docker
+  orchard/managed.ts   running Orchard for the user as a child process (no Docker)
   connection.ts        settings, API key, connect/disconnect, session-status polling
   cache.ts             TTL cache + Paged<T> (loadMore swallows errors, loadAll throws)
   data.ts              every cached fetch the pages make (one per old Riverpod provider)
@@ -52,8 +52,8 @@ src/
   pages/               one module per page (common.ts, songs.ts, setup.ts, home.ts, …)
   index.ts             onActivate wiring: nav, routes, settings, actions, lyrics
 ui/                    common.rfwtxt (setup flow, sign-in, picker) + one file per page
-assets/orchard/        orchard-src.tar.gz + .orchard-src-ref (generated, gitignored)
-tool/                  fetch_orchard_src.sh
+assets/orchard/        orchard-<os>-<arch>.tar.gz + .orchard-bin-ref (generated, gitignored)
+tool/                  build_orchard.sh
 test/                  bun test suites (pure modules only; own tsconfig with Bun types)
 ```
 
@@ -88,29 +88,44 @@ workflow checks out `@evolvedmesh/elbert-plugin-sdk` beside this repo, because `
   - A downloaded file is `applemusic:<catalog id>`.
   - Libraries and listening logs already hold both, so they must never change.
 - **Managed server:**
-  - Compose project `elbert-orchard`, image `elbert-orchard:latest`, sources in
-    `<appSupport>/orchard/src`, and the API key in `<appSupport>/orchard/src/.env`. That `.env` is
-    preserved across source refreshes.
-  - The signed-in Apple session lives in the project's Docker volume, so recreating the container
-    keeps it.
-- **Orchard changes** are committed to orchard `main`, and then the bundle is regenerated. Copying
-  files into a running managed container is a debugging shortcut that lives on one machine.
+  - Lives in `<appSupport>/orchard`: `bin/` (the unpacked program), `data/` (Orchard's data dir:
+    `orchard.db`, `library/`, `wrapper/`) and the API key in `.env`. A Docker-era key in
+    `src/.env` is adopted so clients that hold it carry on.
+  - The signed-in Apple session is `data/wrapper/rootfs/data`.
+  - **Moving from Docker.** The first start on a machine that has the old `elbert-orchard_orchard-data`
+    volume copies the session, database and library out of it once (`migrateLegacy`), stops the old
+    container and sets `--restart=no` so it can't take the port back, and leaves the volume as a backup.
+    Docker is only ever *read* for this, and a machine without it skips the step.
+- **Orchard changes** are committed to orchard `main`, and then the bundle is regenerated
+  (`tool/build_orchard.sh` builds the working tree, dirty or not — commit first).
 
 ## Orchard, managed
 
-`orchard/managed.ts` runs a local Docker Compose project (`NoBackend` anywhere without a desktop,
-so a remote server still works).
+`orchard/managed.ts` starts the bundled Orchard as a child process of Elbert (`NoBackend` where the daemon
+has no host, so a remote server still works). There is no Docker anywhere in the plugin, by decision.
 
-- Extracts the bundled source when `.orchard-src-ref` differs, writes the `.env` key, and writes
-  `docker-compose.override.yml` on every start. The override sets the image tag and the
-  `io.github.61soldiers.elbert.orchard-src-ref` build label, plus `apparmor/seccomp/systempaths=unconfined`
-  when `native.platform().linuxAppArmor`.
-- Then runs `docker compose up -d --build` (`--force-recreate` on restart/update) and polls
-  `http://127.0.0.1:8080/healthz`.
-- `ensureCurrent()` rebuilds a running container whose label doesn't match the bundled ref, at
-  most every 30 s.
-- A server answering on the port with no compose container is someone's hand-run Orchard, and is
-  left alone.
+- **Linux** sandboxes the daemon with user namespaces (Orchard does it). **macOS and Windows** (and Linux
+  where namespaces are blocked, if the system has QEMU) run it in a virtual machine: the plugin ships the
+  guest (`assets/guest`, from `cmd/guestbuild`) and QEMU (`assets/qemu/<os>-<arch>.tar.gz`, from
+  `tool/package_qemu_windows.sh` / `tool/package_qemu_macos.sh`) and hands Orchard `ORCHARD_QEMU`,
+  `ORCHARD_QEMU_SHARE`, `ORCHARD_GUEST_DIR`. Details and the traps are in Orchard's CLAUDE.md.
+- **Only Linux has a Docker volume to move over**; macOS/Windows users sign in again. (If an old Docker
+  container is still holding port 8080 there, it is used as it is, like any hand-run Orchard.)
+- **Android is not wired up yet** (the SDK's runtime-pack path; Orchard's proot launch exists).
+- **Verified:** Linux in real Elbert; the VM path on Linux/KVM and on Windows under Wine. **Not
+  verified:** macOS (the packaging script has never run on a Mac), WHPX, a real Windows machine.
+- Unpacks `assets/orchard/orchard-<os>-<arch>.tar.gz` (and QEMU on macOS/Windows) when `.orchard-bin-ref` differs (and `chmod`s
+  it: `fs.extract` drops file modes), writes the `.env` key, runs `orchard __check-sandbox`, then
+  starts it with `ORCHARD_DATA_DIR`, `ORCHARD_ADDR=127.0.0.1:8080` and `ORCHARD_EXIT_WITH_PARENT=1`
+  (so a crashed Elbert can't leave a signed-in daemon behind), and polls `/healthz`.
+- The first start also downloads the Apple daemon (~50 MB) before Orchard listens: the health wait is
+  5 minutes.
+- `__check-sandbox` fails on systems that block unprivileged user namespaces (Ubuntu 24.04+); the
+  error says which `sysctl` fixes it. Orchard can fall back to a proot (`ORCHARD_PROOT`) but the plugin
+  doesn't ship one yet.
+- If Orchard dies on its own it is restarted, at most 3 times in 5 minutes, then the error shows.
+- A server already answering on the port that this plugin didn't start is someone's hand-run Orchard,
+  and is used as it is.
 
 **Session status** (`unconfigured | starting | awaiting_2fa | ready | failed`) belongs to Orchard.
 - `connection.watchStatus()` polls every 4 s while a page holds it.

@@ -16,7 +16,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "bunx elbert-plugin version ${nextRelease.version} && bash tool/fetch_orchard_src.sh && bun run build && bun run pack"
+        "prepareCmd": "bunx elbert-plugin version ${nextRelease.version} && bash tool/package_qemu_windows.sh && bash tool/build_orchard.sh && bun run build && bun run pack"
       }
     ],
     [
