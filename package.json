@@ -14,7 +14,7 @@
     "fix": "biome check --write .",
     "check": "bun run typecheck && bun test && bun run lint && elbert-plugin check",
     "pack": "elbert-plugin pack --to release",
-    "fetch-orchard": "bash tool/fetch_orchard_src.sh"
+    "build-orchard": "bash tool/build_orchard.sh"
   },
   "repository": {
     "type": "git",

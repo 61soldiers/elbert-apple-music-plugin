@@ -40,20 +40,15 @@ function managedLine(phase: Phase): [icon: string, tone: string, text: string] {
   switch (phase) {
     case 'healthy':
       return ['circle-check', 'primary', `Running on ${managed.serverUrl}`];
-    case 'building':
-      return ['hammer', 'primary', 'Building the server image…'];
-    case 'updating':
-      return ['hammer', 'primary', 'Updating the server image…'];
+    case 'downloading':
+      return ['download', 'primary', 'Downloading…'];
     case 'starting':
     case 'extracting':
-    case 'checkingDocker':
       return ['loader-circle', 'primary', 'Starting…'];
+    case 'migrating':
+      return ['loader-circle', 'primary', 'Moving your setup over…'];
     case 'stopped':
       return ['circle-pause', 'onSurfaceVariant', 'Stopped'];
-    case 'dockerMissing':
-      return ['triangle-alert', 'error', "Docker isn't installed"];
-    case 'dockerNotRunning':
-      return ['triangle-alert', 'error', "Docker isn't running"];
     case 'error':
       return ['circle-x', 'error', managed.message ?? 'Failed to start'];
     default:

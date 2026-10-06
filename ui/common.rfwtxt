@@ -151,7 +151,7 @@ widget SetupFlow = switch args.setup.step {
         SizedBox(height: 16.0),
         Button(variant: "filled", wide: true, label: "Connect", busy: args.setup.remoteBusy, onPressed: event "setup" { action: "connect" }),
         switch args.setup.canGoBack { true: Column(crossAxisAlignment: "stretch", mainAxisSize: "min", children: [SizedBox(height: 4.0),
-            Button(variant: "text", label: "Use Docker instead", disabled: args.setup.remoteBusy, onPressed: event "setup" { action: "back" })]), default: SizedBox() },
+            Button(variant: "text", label: "Use the built-in server instead", disabled: args.setup.remoteBusy, onPressed: event "setup" { action: "back" })]), default: SizedBox() },
       ],
     ),
   ),

@@ -16,7 +16,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "bunx elbert-plugin version ${nextRelease.version} && bash tool/fetch_orchard_src.sh && bun run build && bun run pack"
+        "prepareCmd": "bunx elbert-plugin version ${nextRelease.version} && bash tool/build_runtime.sh ${nextRelease.version} && bun run build && bun run pack"
       }
     ],
     [
@@ -33,6 +33,10 @@
           {
             "path": "release/*.elbx",
             "label": "Elbert plugin (.elbx)"
+          },
+          {
+            "path": "release/runtime/*.tar.gz",
+            "label": "Runtime pack (downloaded by the plugin)"
           }
         ]
       }

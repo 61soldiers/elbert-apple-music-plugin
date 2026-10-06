@@ -31,11 +31,7 @@
     "lyrics",
     "history"
   ],
-  "platforms": [
-    "linux",
-    "windows",
-    "macos"
-  ],
+  "platforms": ["linux", "windows", "macos"],
   "migrate": {
     "settingsKeys": [
       "orchardEnabled",
@@ -43,12 +39,8 @@
       "orchardManaged",
       "orchardPlayHistoryEnabled"
     ],
-    "secureKeys": [
-      "orchard_api_key"
-    ],
+    "secureKeys": ["orchard_api_key"],
     "playlistLinks": true,
-    "legacySources": [
-      "appleMusic"
-    ]
+    "legacySources": ["appleMusic"]
   }
 }

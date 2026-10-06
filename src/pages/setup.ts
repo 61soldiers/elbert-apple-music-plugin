@@ -186,36 +186,20 @@ const failure = (title: string, message: string, retry?: string, retryLabel = 'T
 function managedStep(phase: Phase): Step {
   switch (phase) {
     case 'idle':
-    case 'checkingDocker':
-      return busy('container', 'Checking Docker…');
-    case 'dockerMissing':
-      return failure(
-        "Docker isn't installed",
-        'Elbert runs the Apple Music server in Docker. Install Docker Desktop (docker.com/products/docker-desktop), start it, then try again.',
-        'restart',
-        'Re-check',
-        'container',
-      );
-    case 'dockerNotRunning':
-      return failure("Docker isn't running", 'Start Docker Desktop and wait for it to finish loading, then try again.', 'restart', 'Re-check', 'container');
+    case 'downloading':
+      return busy('download', 'Getting Apple Music ready', managed.message ?? 'Downloading what Apple Music needs. This happens once.');
     case 'extracting':
       return busy('package-open', 'Preparing Orchard…');
-    case 'building':
-      return busy('hammer', 'Building Orchard', 'The first run builds the server image. This can take a few minutes — you only wait once.');
-    case 'updating':
-      return busy(
-        'hammer',
-        'Updating Orchard',
-        'This version of the plugin ships a newer Apple Music server than the one running. Rebuilding it — you stay signed in.',
-      );
+    case 'migrating':
+      return busy('package-open', 'Moving your Apple Music setup', managed.message ?? 'Bringing your existing sign-in over. You stay signed in.');
     case 'starting':
-      return busy('rocket', 'Starting Orchard…');
+      return busy('rocket', 'Starting Orchard…', managed.message ?? undefined);
     case 'stopped':
       return failure('Orchard is stopped', 'Start the local server again to keep using Apple Music.', 'restart', 'Start Orchard', 'circle-pause');
     case 'error':
       return { ...failure("Orchard didn't start", managed.message ?? 'Something went wrong starting Orchard.', 'restart'), canViewLogs: true };
     case 'unsupported':
-      return failure('Not available here', 'Running Orchard locally needs a desktop platform with Docker. Connect to a remote Orchard server instead.');
+      return failure('Not available here', "Elbert can't run the Apple Music server on this system yet. Connect to a remote Orchard server instead.");
     case 'healthy':
       return busy('plug-zap', 'Connecting to Orchard…');
   }
@@ -302,7 +286,7 @@ export class SetupFlow {
       ...step,
       hasRetry: !!step.retry,
       canViewLogs: !!step.canViewLogs,
-      hostSubtitle: 'Elbert starts and manages a local Orchard using Docker. Requires Docker to be installed.',
+      hostSubtitle: 'Elbert starts and manages a local Orchard for you. Nothing else to install.',
       chooseBusy: this.chooseBusy,
       canGoBack: this.canHost,
       remoteBusy: this.remoteBusy,

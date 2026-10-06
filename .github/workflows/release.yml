@@ -12,8 +12,38 @@ permissions:
   contents: read
 
 jobs:
-  # Version, bundle Orchard, pack the .elbx and publish the release.
+  # QEMU for each platform, built from source with only what Apple Music's guest
+  # needs (about 5 MB compressed each). The result is cached on the build script, so
+  # a release that doesn't change it doesn't rebuild it.
+  qemu:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: linux-amd64, os: ubuntu-24.04, target: linux }
+          - { id: linux-arm64, os: ubuntu-24.04-arm, target: linux }
+          - { id: windows-amd64, os: ubuntu-24.04, target: windows }
+          - { id: darwin-arm64, os: macos-14, target: macos }
+          - { id: darwin-amd64, os: macos-15-intel, target: macos }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: tool/qemu/out/${{ matrix.id }}
+          key: qemu-${{ matrix.id }}-${{ hashFiles('tool/qemu/build.sh') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: bash tool/qemu/build.sh ${{ matrix.target }} tool/qemu/out/${{ matrix.id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-${{ matrix.id }}
+          path: tool/qemu/out/${{ matrix.id }}
+          if-no-files-found: error
+
+  # Version, build the runtime packs, pack the .elbx and publish the release.
   release:
+    needs: qemu
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -41,6 +71,23 @@ jobs:
           repository: ${{ github.repository_owner }}/orchard
           ref: ${{ vars.ORCHARD_SRC_REF || 'main' }}
           path: .orchard-src
+
+      # tool/build_runtime.sh compiles Orchard for each platform it ships.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .orchard-src/go.mod
+
+      # The VM guest is built here, on Linux.
+      - run: sudo apt-get update && sudo apt-get install -y e2fsprogs
+
+      # QEMU for every platform, built above.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qemu-*
+          path: tool/qemu/out
+      - run: |
+          # artifacts unpack as tool/qemu/out/qemu-<id>/…; the build script wants <id>/
+          cd tool/qemu/out && for d in qemu-*; do mv "$d" "${d#qemu-}"; done
 
       - uses: oven-sh/setup-bun@v2
 
