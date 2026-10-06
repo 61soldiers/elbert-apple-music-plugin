@@ -75,7 +75,7 @@ windows)
 	cat >"$work/windows.sh" <<SCRIPT
 set -e
 dnf -q -y install mingw64-gcc mingw64-gcc-c++ mingw64-glib2-static mingw64-glib2 mingw64-pixman-static mingw64-pixman \
-  mingw64-zlib-static mingw64-pcre2-static mingw64-gettext-static mingw64-libffi-static mingw64-winpthreads-static \
+  mingw64-zlib-static mingw64-pcre2-static mingw64-gettext-static mingw64-win-iconv mingw64-win-iconv-static mingw64-libffi-static mingw64-winpthreads-static \
   mingw64-pkg-config mingw64-binutils meson ninja-build python3 python3-pip python3-wheel python3-setuptools flex bison git make xz perl gcc glib2-devel mingw64-headers >/dev/null 2>&1
 git clone -q --depth 1 --branch $LIBSLIRP_TAG https://gitlab.freedesktop.org/slirp/libslirp.git /tmp/slirp
 cat > /tmp/cross.ini <<INI

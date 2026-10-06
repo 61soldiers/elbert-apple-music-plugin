@@ -87,24 +87,25 @@ jobs:
       - name: Boot the guest with Apple's daemon (software emulation)
         run: |
           set -u
-          qemu-out/qemu-system-x86_64 -L qemu-out/share -machine q35 -m 1024 -smp 2 \
+          # The host pings the guest like Orchard does; without it the guest stops itself.
+          ( while :; do echo ORCHARDPING; sleep 5; done ) | qemu-out/qemu-system-x86_64 -L qemu-out/share -machine q35 -m 1024 -smp 2 \
             -display none -monitor none -nodefaults -no-reboot \
             -kernel guest/vmlinuz -initrd guest/initramfs.cpio.gz \
             -append "console=ttyS0 quiet loglevel=3 panic=-1 rdinit=/init" \
             -drive if=none,id=d0,format=raw,file=guest/data.img -device virtio-blk-pci,drive=d0 \
             -netdev user,id=n0 -device virtio-net-pci,netdev=n0,romfile= \
             -chardev stdio,id=con,signal=off -serial chardev:con \
-            -accel tcg -cpu Nehalem \
-            < /dev/null > boot.log 2>&1 &
-          qemu=$!
-          for i in $(seq 1 90); do
-            if grep -q "Android presentation interface constructed" boot.log; then break; fi
-            kill -0 $qemu 2>/dev/null || break
+            -accel tcg -cpu Nehalem > boot.log 2>&1 &
+          start=$SECONDS
+          ok=0
+          for i in $(seq 1 120); do
+            if grep -q "Android presentation interface constructed" boot.log; then ok=1; break; fi
             sleep 2
           done
-          kill $qemu 2>/dev/null || true
-          echo "---- guest console"; cat boot.log | head -60
-          grep -q "Android presentation interface constructed" boot.log
+          echo "daemon initialised: $ok after $((SECONDS - start))s"
+          pkill -f qemu-system-x86_64 || true
+          echo "---- guest console"; head -40 boot.log
+          [ "$ok" = 1 ]
       - uses: actions/upload-artifact@v4
         with:
           name: qemu-${{ matrix.os }}
