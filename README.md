@@ -31,8 +31,8 @@ bun run pack             # release/<id>-<version>.elbx
 ```
 
 Everything runs on [Bun](https://bun.sh): package manager, runtime, bundler and test runner. The
-SDK is installed from `../elbert-plugin-sdk`. Orchard is built from a checkout and bundled (needs Go):
-`ORCHARD_SRC_DIR=../orchard bash tool/build_orchard.sh`. Load `dist/` in Elbert with
+SDK is installed from `../elbert-plugin-sdk`. Orchard is built from a checkout into runtime packs (needs Go):
+`ORCHARD_SRC_DIR=../orchard bash tool/build_runtime.sh`. Load `dist/` in Elbert with
 **Settings → Plugins → Load development folder**. See [CLAUDE.md](CLAUDE.md) for how the plugin is
 put together.
 

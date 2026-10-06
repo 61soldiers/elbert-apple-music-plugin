@@ -94,7 +94,7 @@ INI
 export PKG_CONFIG_PATH=/usr/x86_64-w64-mingw32/sys-root/mingw/lib/pkgconfig
 (cd /tmp/slirp && meson setup build --cross-file /tmp/cross.ini --default-library=static --prefix=/usr/x86_64-w64-mingw32/sys-root/mingw >/dev/null && ninja -C build install >/dev/null)
 cd /build
-/src/configure --cross-prefix=x86_64-w64-mingw32- --static ${common_flags[*]} >/dev/null
+/src/configure --cross-prefix=x86_64-w64-mingw32- --static --extra-cflags=-DLIBSLIRP_STATIC ${common_flags[*]} >/dev/null
 make -j\$(nproc) qemu-system-x86_64.exe >/dev/null
 x86_64-w64-mingw32-strip --strip-all qemu-system-x86_64.exe
 cp qemu-system-x86_64.exe /out/
