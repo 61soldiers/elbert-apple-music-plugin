@@ -134,12 +134,13 @@ export function songRow(
   };
 }
 
-/** The ⋯ menu every Apple Music song row carries. */
-export function songMenu(s: Song, inLibrary: boolean) {
+/** The ⋯ menu every Apple Music song row carries; [removable] adds "Remove from playlist". */
+export function songMenu(s: Song, inLibrary: boolean, removable = false) {
   return [
     { id: 'play', label: 'Play', icon: 'play' },
     { id: 'queue', label: 'Add to queue', icon: 'list-plus' },
     { id: 'playlist', label: 'Add to playlist', icon: 'list-music' },
+    ...(removable ? [{ id: 'removeFromPlaylist', label: 'Remove from playlist', icon: 'list-minus' }] : []),
     { id: '-1', label: '', divider: true },
     ...(s.artistId ? [{ id: 'artist', label: 'Go to artist', icon: 'user' }] : []),
     ...(s.albumId ? [{ id: 'album', label: 'Go to album', icon: 'disc' }] : []),

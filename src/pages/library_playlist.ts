@@ -52,7 +52,7 @@ function render(page: P) {
     actions: playlistActions(s.busy, n > 0),
     busy: s.busy,
     editing: s.editing,
-    tracks: s.editing ? [] : s.list.rows(),
+    tracks: s.editing ? [] : s.list.rows({ removable: s.playlist.canEdit }),
     editItems: s.editing ? list.map((t) => ({ id: t.id, title: t.name, artist: t.artistName, cover: sizedArtwork(t.artwork, 88) })) : [],
     hasMore: more,
   });
@@ -86,6 +86,35 @@ async function pushOrder(page: P, order: Song[]) {
     true,
   );
   if (error) await elbert.ui.toast(error);
+  return error;
+}
+
+/** The ⋯ menu's "Remove from playlist". By position, so a song listed twice loses only that row. */
+async function removeAt(page: P, index: number) {
+  const s = page.state;
+  const song = tracks(s)[index];
+  if (!song) return;
+  s.busy = true;
+  render(page);
+  try {
+    // The loaded part is a prefix of the whole list, so the row's index holds.
+    const next = [...(await loadEvery(s))];
+    if (next[index]?.id !== song.id) return;
+    next.splice(index, 1);
+    const previous = s.working;
+    if (!(await pushOrder(page, next))) {
+      await elbert.ui.toast(`Removed "${song.name}" from ${s.playlist.name}.`, { durationMs: 2000 });
+      return;
+    }
+    // Apple refused: show what it still has.
+    s.working = previous;
+    await s.list.set(previous ?? s.paged.items);
+  } catch (e) {
+    await elbert.ui.toast(errorText(e));
+  } finally {
+    s.busy = false;
+    render(page);
+  }
 }
 
 async function toggleEditing(page: P) {
@@ -125,6 +154,7 @@ definePage<PageData, State>('libraryPlaylist', {
       return playSongs(tracks(page.state), index ?? 0);
     },
     menu(page, { index, action }) {
+      if (action === 'removeFromPlaylist') return removeAt(page, index);
       return page.state.list.menu(index, action);
     },
     async more(page) {
