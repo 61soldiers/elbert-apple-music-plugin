@@ -1,4 +1,10 @@
 // The Apple Music Home tab — or, until a session is ready, the setup flow.
+//
+// The page is a ScrollList, not a ScrollPage of slivers, because of the end
+// marker: a ListView mounts its children only near the viewport, so the marker
+// (a CompactTrackList with no rows and `hasMore`, which is just Elbert's
+// load-more spinner) fires when the user nears the end of the feed. A sliver
+// marker would fire on open, since a sliver always builds its first cell.
 
 import core;
 import material;
@@ -12,97 +18,148 @@ widget HomePage = switch data.mode {
 
 widget HomeContent = Stagger(
   durationMs: 700,
-  child: ScrollPage(
+  child: ScrollList(
     bleed: true,
+    padding: [0.0, 0.0],
     refreshEvent: "refresh",
-    slivers: [
-      SliverBox(
-        child: SlideIn(
-          delayMs: 0,
+    children: [
+      TopInset(),
+      SlideIn(
+        delayMs: 0,
+        child: Padding(
+          padding: [0.0, 0.0, 0.0, 20.0],
+          child: Row(
+            children: [
+              ThemedIcon(name: "music-4", color: "primary", size: 26.0),
+              SizedBox(width: 10.0),
+              Expanded(child: ThemedText(text: "Apple Music", style: "headlineMedium", weight: 700, size: 28.0)),
+              switch data.layout.mobile {
+                true: IconButton(icon: "folder-down", tooltip: "Downloads", badge: data.tabs.4.badge, onPressed: event "downloads" {}),
+                default: SizedBox(),
+              },
+            ],
+          ),
+        ),
+      ),
+      SlideIn(
+        delayMs: 40,
+        child: Padding(
+          padding: [0.0, 0.0, 0.0, 20.0],
+          child: switch data.layout.mobile {
+            true: Align(
+              alignment: { x: -1.0, y: 0.0 },
+              child: Button(variant: "chip", icon: "arrow-left", label: "Your library", onPressed: event "library" {}),
+            ),
+            default: SubNav(tabs: data.tabs, current: data.current),
+          },
+        ),
+      ),
+      switch data.recsStatus {
+        "loading": Loader(expand: false, height: 132.0),
+        "error": Message(text: data.recsError, color: "error"),
+        default: SlideIn(
+          delayMs: 80,
+          child: switch data.hasHero {
+            true: HeroStrip(hero: data.hero, pins: data.pins, onHero: event "hero" {}, onPin: event "pin" {}),
+            default: switch data.layout.mobile {
+              true: SizedBox(),
+              default: HeroStrip(pins: data.pins, onPin: event "pin" {}),
+            },
+          },
+        ),
+      },
+      SizedBox(height: 28.0),
+      switch data.shelvesStatus {
+        "loading": Loader(expand: false, height: 260.0),
+        "empty": Surface(
+          tone: "low",
+          child: SizedBox(
+            height: 180.0,
+            child: Center(child: ThemedText(text: "Nothing to recommend yet. Play some music and check back.", style: "bodyMedium", color: "onSurfaceVariant")),
+          ),
+        ),
+        default: SizedBox(),
+      },
+      ...for s in data.shelves:
+        SlideIn(
+          delayMs: s.delay,
           child: Padding(
-            padding: [0.0, 0.0, 0.0, 20.0],
-            child: Row(
+            padding: [0.0, 0.0, 0.0, 32.0],
+            child: Column(
+              crossAxisAlignment: "stretch",
               children: [
-                ThemedIcon(name: "music-4", color: "primary", size: 26.0),
-                SizedBox(width: 10.0),
-                Expanded(child: ThemedText(text: "Apple Music", style: "headlineMedium", weight: 700, size: 28.0)),
-                switch data.layout.mobile {
-                  true: IconButton(icon: "folder-down", tooltip: "Downloads", badge: data.tabs.4.badge, onPressed: event "downloads" {}),
-                  default: SizedBox(),
+                Padding(
+                  padding: [0.0, 0.0, 0.0, 14.0],
+                  child: Column(
+                    crossAxisAlignment: "start",
+                    children: [
+                      ThemedText(text: s.title, style: "headlineSmall", weight: 700, size: 22.0),
+                      switch s.hasReason {
+                        true: Padding(padding: [0.0, 4.0, 0.0, 0.0], child: ThemedText(text: s.reason, style: "bodyMedium", color: "onSurfaceVariant")),
+                        default: SizedBox(),
+                      },
+                    ],
+                  ),
+                ),
+                switch s.kind {
+                  "feature": CardRail(cardWidth: 300.0, items: s.items, onTap: event "shelf" { shelf: s.key }),
+                  "stations": CardRail(size: "artist", items: s.items, onTap: event "shelf" { shelf: s.key }),
+                  default: CardRail(size: "home", items: s.items, onTap: event "shelf" { shelf: s.key }),
                 },
               ],
             ),
           ),
         ),
-      ),
-      SliverBox(
-        child: SlideIn(
-          delayMs: 40,
+      // Mounted only when the user nears it; draws the next few shelves.
+      switch data.hasMoreShelves {
+        true: CompactTrackList(items: [], hasMore: true, onLoadMore: event "more" {}),
+        default: SizedBox(),
+      },
+      switch data.replayStatus {
+        "loading": Loader(expand: false, height: 120.0),
+        "ready": SlideIn(
+          delayMs: 0,
           child: Padding(
-            padding: [0.0, 0.0, 0.0, 20.0],
-            child: switch data.layout.mobile {
-              true: Align(
-                alignment: { x: -1.0, y: 0.0 },
-                child: Button(variant: "chip", icon: "arrow-left", label: "Your library", onPressed: event "library" {}),
-              ),
-              default: SubNav(tabs: data.tabs, current: data.current),
-            },
-          ),
-        ),
-      ),
-      SliverBox(
-        child: switch data.recsStatus {
-          "loading": Loader(expand: false, height: 132.0),
-          "error": Message(text: data.recsError, color: "error"),
-          default: SlideIn(
-            delayMs: 80,
-            child: switch data.hasHero {
-              true: HeroStrip(hero: data.hero, pins: data.pins, onHero: event "hero" {}, onPin: event "pin" {}),
-              default: switch data.layout.mobile {
-                true: SizedBox(),
-                default: HeroStrip(pins: data.pins, onPin: event "pin" {}),
-              },
-            },
-          ),
-        },
-      ),
-      SliverGap(height: 28.0),
-      SliverBox(
-        child: switch data.hasGroups {
-          true: SlideIn(
-            delayMs: 140,
+            padding: [0.0, 0.0, 0.0, 32.0],
             child: Column(
               crossAxisAlignment: "stretch",
               children: [
-                Padding(padding: [0.0, 0.0, 0.0, 14.0], child: ThemedText(text: "Made For You", style: "headlineSmall", weight: 700, size: 22.0)),
-                CardRail(size: "home", items: data.groups, onTap: event "group" {}),
+                Padding(padding: [0.0, 0.0, 0.0, 14.0], child: ThemedText(text: "Replay", style: "headlineSmall", weight: 700, size: 22.0)),
+                ReplayCard(replay: data.replay),
               ],
             ),
           ),
-          default: SizedBox(),
-        },
-      ),
-      SliverGap(height: 28.0),
-      SliverBox(
-        child: SlideIn(
-          delayMs: 200,
-          child: Padding(padding: [0.0, 0.0, 0.0, 14.0], child: ThemedText(text: "Recently Played", style: "headlineSmall", weight: 700, size: 22.0)),
+        ),
+        default: SizedBox(),
+      },
+    ],
+  ),
+);
+
+// The latest Replay year: its headline number, and a way into the Replay tab.
+widget ReplayCard = Surface(
+  tone: "high",
+  radius: "extraLarge",
+  padding: 20.0,
+  onTap: event "replay" {},
+  child: Row(
+    children: [
+      ThemedIcon(name: "chart-no-axes-column", color: "primary", size: 34.0),
+      SizedBox(width: 18.0),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: "start",
+          children: [
+            ThemedText(text: args.replay.title, style: "titleMedium", weight: 700, size: 18.0),
+            switch args.replay.hasHeadline {
+              true: Padding(padding: [0.0, 4.0, 0.0, 0.0], child: ThemedText(text: args.replay.headline, style: "headlineMedium", weight: 700, color: "primary")),
+              default: SizedBox(),
+            },
+            Padding(padding: [0.0, 4.0, 0.0, 0.0], child: ThemedText(text: args.replay.subtitle, style: "bodyMedium", color: "onSurfaceVariant")),
+          ],
         ),
       ),
-      SliverBox(
-        child: switch data.recentStatus {
-          "loading": Loader(expand: false, height: 220.0),
-          "error": Message(text: data.recentError, color: "error"),
-          "empty": Surface(
-            tone: "low",
-            child: SizedBox(
-              height: 180.0,
-              child: Center(child: ThemedText(text: "Nothing played recently.", style: "bodyMedium", color: "onSurfaceVariant")),
-            ),
-          ),
-          default: CardRail(size: "home", items: data.recent, onTap: event "recent" {}),
-        },
-      ),
+      ThemedIcon(name: "chevron-right", color: "onSurfaceVariant", size: 22.0),
     ],
   ),
 );

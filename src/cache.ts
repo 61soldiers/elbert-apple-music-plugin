@@ -14,6 +14,8 @@ const inflight = new Map<string, Promise<unknown>>();
 
 export const TTL = {
   list: 5 * 60_000,
+  /** Apple's recommendations are recomputed slowly, and are the heaviest call Home makes. */
+  home: 15 * 60_000,
   detail: 5 * 60_000,
   search: 2 * 60_000,
   replay: 60 * 60_000,

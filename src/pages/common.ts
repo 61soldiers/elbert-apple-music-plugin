@@ -3,27 +3,14 @@
 
 import type { Page, PageController } from '@evolvedmesh/elbert-plugin-sdk';
 import { playStation } from '../activity';
+import { type Card, itemCard, RAIL_PX } from '../cards';
 import { activeCount, onDownloadsChange } from '../downloads';
 import { errorCode, errorText } from '../errors';
 import { formatDuration } from '../format';
-import {
-  type Album,
-  type Artist,
-  bestArtwork,
-  type Item,
-  itemSubtitle,
-  type LibraryPlaylist,
-  type Pin,
-  type Playlist,
-  type Song,
-  sizedArtwork,
-} from '../orchard/client';
+import { type Album, type Artist, bestArtwork, type LibraryPlaylist, type Pin, type Playlist, type Song, sizedArtwork } from '../orchard/client';
 import { SECTION } from '../playback';
 
-export { SECTION };
-
-/** Rail artwork: Apple sizes it for us, ~24 KB at 400 px against ~41 KB for the largest. */
-export const RAIL_PX = 400;
+export { RAIL_PX, SECTION };
 
 // ---- Page lifetime ------------------------------------------------------------------
 
@@ -88,21 +75,7 @@ export function sectionChrome<D extends object, S extends object>(page: Page<D, 
 
 // ---- Cards ----------------------------------------------------------------------------
 
-export interface Card {
-  id: string;
-  title: string;
-  subtitle: string;
-  cover?: string;
-  placeholderIcon?: string;
-}
-
-export const itemCard = (i: Item, px = RAIL_PX): Card => ({
-  id: i.id,
-  title: i.name,
-  subtitle: i.type === 'stations' ? itemSubtitle(i) || 'Station' : itemSubtitle(i),
-  cover: sizedArtwork(i.artwork, px),
-  placeholderIcon: i.type === 'stations' ? 'radio' : 'music',
-});
+export { type Card, itemCard };
 
 export const albumCard = (a: Album, px = RAIL_PX): Card => ({
   id: a.id,
