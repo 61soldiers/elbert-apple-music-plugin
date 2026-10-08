@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/release", "!**/node_modules", "!**/assets"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/release",
+      "!**/node_modules",
+      "!**/assets",
+      "!elbert-plugin.json"
+    ]
   },
   "formatter": {
     "enabled": true,
