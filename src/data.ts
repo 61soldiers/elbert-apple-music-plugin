@@ -4,8 +4,11 @@
 import { cached, invalidate, invalidatePaged, Paged, pagedList, TTL } from './cache';
 import { type Album, type Artist, type LibraryPlaylist, orchard, type Song, type Summary } from './orchard/client';
 
-export const recommendations = () => cached('recs', TTL.list, () => orchard.getRecommendations());
-export const recentlyPlayed = () => cached('recent', TTL.list, () => orchard.getRecentlyPlayed(12));
+/** Home's Recently Played shelf. */
+const RECENT_LIMIT = 20;
+
+export const recommendations = () => cached('recs', TTL.home, () => orchard.getRecommendations());
+export const recentlyPlayed = () => cached('recent', TTL.list, () => orchard.getRecentlyPlayed(RECENT_LIMIT));
 export const pins = () => cached('pins', TTL.list, () => orchard.getPins());
 
 export const playlist = (id: string) => cached(`playlist:${id}`, TTL.detail, () => orchard.getPlaylist(id));

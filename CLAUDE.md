@@ -23,7 +23,7 @@ did then, and existing users' setups must carry on untouched.
 ```shell
 bun install
 bun run typecheck         # tsc over src/ (sandbox types only) and test/ (Bun types)
-bun test                  # the privacy-export parser
+bun test                  # the privacy-export parser and Home's shelves
 bun run lint              # biome check; `bun run fix` applies fixes and formatting
 bun run check             # all of the above + manifest/template lint — what CI runs
 bun run build             # dist/plugin.js
@@ -49,6 +49,7 @@ src/
   privacy/parse.ts     Apple's privacy export → plays (pure; tested in test/privacy.test.ts)
   privacy/import.ts    streams the export's files in (fs.openCsv) and hands plays to history.import
   ids.ts link.ts html.ts format.ts
+  cards.ts shelves.ts  card shape + Home's shelf order/Replay card (pure; tested in test/)
   pages/               one module per page (common.ts, songs.ts, setup.ts, home.ts, …)
   index.ts             onActivate wiring: nav, routes, settings, actions, lyrics
 ui/                    common.rfwtxt (setup flow, sign-in, picker) + one file per page
@@ -202,11 +203,26 @@ to install.
   links.
 - "Recently Added" is `recent: true, limit: 30`. The full album list stays alphabetical.
 
-**Home** is deliberately just the account's own music.
+**Home** is deliberately just the account's own music, laid out like the Apple Music app's.
 - The "New Music" hero sits with the pins beside it on desktop. A phone shows the hero alone,
-  and its pins live on Library.
-- Below that come Made For You and Recently Played.
-- The hero is found by searching item **names** across every recommendation group.
+  and its pins live on Library. The hero is found by searching item **names** across every
+  recommendation group.
+- Below it is a feed of **shelves** (`src/shelves.ts`, pure and tested): one per group of
+  `/v1/me/recommendations` (MusicKit's Get Recommendations: the whole feed in one answer), plus
+  Recently Played (its own, fresher call; Apple's own group of that name is dropped unless that
+  call comes back empty) and Replay last. Titles are Apple's and differ per account, so shelves are
+  driven by the data; only the well-known ones are moved to the front (Top Picks, Recently
+  Played, Made for You, Stations, Mood, New Releases). Top Picks / Find Your Mood only appear if
+  Apple sends such a group; the default response of the account tried had neither.
+- **Request budget:** three requests on open (recommendations, recent, pins) however many shelves
+  there are, and one more (Replay's year list) only when the end of the feed is reached. Recs are
+  cached 15 min (`TTL.home`). Shelves are revealed 4, then 3 at a time, which saves widgets and
+  cover downloads, not requests. A pull-to-refresh within 20 s of the last one is served from
+  cache.
+- **The page is a `ScrollList`, on purpose.** The end marker is a `CompactTrackList(items: [],
+  hasMore, onLoadMore)` (just Elbert's load-more spinner), and only a ListView mounts children near
+  the viewport. In a `ScrollPage` sliver (`CardGrid`, `TrackList`) the marker fires on open, because
+  a sliver always builds its first cell, and the whole feed loads at once (seen).
 - Charts and editorial Browse rows were removed on purpose (hundreds of extra covers, 429s). Don't
   reinstate them without a plan for the request volume.
 
