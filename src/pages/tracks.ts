@@ -22,7 +22,7 @@ import {
 } from '../downloads';
 import type { Song } from '../orchard/client';
 import { localMatches } from '../playback';
-import { errorText, onClose, songRow } from './common';
+import { errorText, onClose, songMenu, songRow } from './common';
 import { songAction } from './songs';
 
 type RowStatus = 'none' | 'working' | 'failed' | 'saved';
@@ -81,12 +81,17 @@ export class SongList {
     return job ? recordFor(job)?.tracks.get(songId) : undefined;
   }
 
-  rows(opts: { showCover?: boolean; fallbackCover?: string } = {}) {
+  rows(opts: { showCover?: boolean; fallbackCover?: string; removable?: boolean } = {}) {
     return this.songs.map((s, i) => {
       const p = this.progressFor(s.id);
       const status = statusOf(p);
       const localId = this.local[i]?.id ?? null;
-      const row = songRow(s, { localId, status: status === 'none' && localId ? 'saved' : status, showCover: opts.showCover });
+      const row = songRow(s, {
+        localId,
+        status: status === 'none' && localId ? 'saved' : status,
+        showCover: opts.showCover,
+        menu: songMenu(s, localId != null, opts.removable),
+      });
       return {
         ...row,
         cover: row.cover ?? opts.fallbackCover,
