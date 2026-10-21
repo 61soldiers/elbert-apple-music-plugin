@@ -54,8 +54,8 @@ function info(s: State) {
   const cols: { label: string; value: string }[] = [];
   if (s.kind !== 'song') cols.push({ label: 'Tracks', value: `${tracks.length}${more ? '+' : ''}` });
   cols.push({ label: 'Duration', value: s.kind === 'song' ? formatDuration(totalMs) : formatReadableDuration(totalMs) });
-  if (s.kind === 'album' && s.detail.releaseDate) cols.push({ label: 'Released', value: s.detail.releaseDate });
-  if (s.detail.recordLabel) cols.push({ label: 'Label', value: s.detail.recordLabel });
+  // Three chips at most, like Elbert's own album page: the header is a fixed height.
+  if (s.kind === 'album' && s.detail.releaseDate) cols.push({ label: 'Released', value: s.detail.releaseDate.slice(0, 4) });
   return cols;
 }
 
@@ -64,7 +64,7 @@ function render(page: P) {
   if (!s.detail) return;
   const d = s.detail;
   const notes = stripHtml(d.notes).trim();
-  const credit = stripHtml(d.copyright).trim();
+  const credit = [stripHtml(d.copyright).trim(), d.recordLabel ? `Label: ${d.recordLabel}` : ''].filter(Boolean).join(' · ');
   const owned = s.owned?.canEdit ? s.owned : null;
   update(page, {
     status: 'ready',
@@ -75,8 +75,11 @@ function render(page: P) {
     info: info(s),
     hasArtist: !!d.artistId,
     downloadLabel: s.list.songs.length > 1 ? 'Download All' : 'Download',
-    hasOwned: owned != null,
-    ownedActions: playlistActions(s.ownedBusy, true),
+    menu: [
+      ...(d.artistId ? [{ id: 'artist', label: 'Go to artist', icon: 'user' }] : []),
+      { id: 'downloads', label: 'Downloads', icon: 'folder-down' },
+      ...(owned ? playlistActions(s.ownedBusy, true) : []),
+    ],
     hasNotes: !!(notes || credit),
     notes,
     credit,
@@ -154,7 +157,7 @@ function defineDetail(name: string, kind: Kind) {
       s.list = new SongList(() => render(page));
       s.list.watch(page);
       void load(page);
-      return { status: 'loading', tracks: [], info: [], ownedActions: [], hasOwned: false, hasBulk: false };
+      return { status: 'loading', tracks: [], info: [], menu: [], hasBulk: false };
     },
     events: {
       play(page, { index }) {
@@ -198,17 +201,21 @@ function defineDetail(name: string, kind: Kind) {
           await elbert.ui.toast(`Download failed: ${errorText(e)}`);
         }
       },
-      downloads() {
-        return elbert.ui.navigate(`${SECTION}/downloads`);
-      },
       viewFiles(page) {
         const folder = page.state.list.bulkData().bulkFolder;
         if (folder) return elbert.ui.reveal(folder);
       },
-      ownedAction(page, { id }) {
+      // The header's ⋯ menu: navigation first, then the playlist's own actions.
+      headerMenu(page, { id }) {
         const s = page.state;
+        if (id === 'artist') {
+          const artistId = s.detail?.artistId;
+          return artistId ? elbert.ui.navigate(routes.artist(artistId)) : undefined;
+        }
+        if (id === 'downloads') return elbert.ui.navigate(`${SECTION}/downloads`);
         const owned = s.owned;
-        if (!owned) return;
+        // The header menu can't grey an item out while a sync runs.
+        if (!owned || s.ownedBusy) return;
         return runPlaylistAction(id, {
           libraryId: owned.id,
           name: owned.name,
