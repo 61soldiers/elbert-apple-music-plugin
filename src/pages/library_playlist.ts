@@ -44,12 +44,13 @@ function render(page: P) {
     status: 'ready',
     title: s.playlist.name,
     cover: sizedArtwork(s.playlist.artwork, 240),
-    countLine: `${n}${more ? '+' : ''} song${n === 1 && !more ? '' : 's'}${s.playlist.canEdit ? '' : ' · read-only'}`,
+    subtitle: s.playlist.canEdit ? 'Your playlist' : 'Read-only',
+    info: [{ label: 'Tracks', value: `${n}${more ? '+' : ''}` }],
     hasDescription: !!stripHtml(s.playlist.description),
     description: stripHtml(s.playlist.description),
     hasTracks: n > 0,
-    canEdit: s.playlist.canEdit,
-    actions: playlistActions(s.busy, n > 0),
+    // The header's ⋯ menu; a read-only playlist has none.
+    actions: s.playlist.canEdit ? playlistActions(s.busy, n > 0) : [],
     busy: s.busy,
     editing: s.editing,
     tracks: s.editing ? [] : s.list.rows({ removable: s.playlist.canEdit }),
@@ -147,11 +148,14 @@ definePage<PageData, State>('libraryPlaylist', {
     s.list = new SongList(() => render(page));
     s.list.watch(page);
     void load(page);
-    return { status: 'loading', editing: false, tracks: [], editItems: [], actions: [] };
+    return { status: 'loading', editing: false, tracks: [], editItems: [], info: [], actions: [] };
   },
   events: {
     play(page, { index }) {
       return playSongs(tracks(page.state), index ?? 0);
+    },
+    shuffle(page) {
+      return playSongs(tracks(page.state), 0, true);
     },
     menu(page, { index, action }) {
       if (action === 'removeFromPlaylist') return removeAt(page, index);
@@ -191,6 +195,8 @@ definePage<PageData, State>('libraryPlaylist', {
     },
     action(page, { id }) {
       const s = page.state;
+      // The header menu can't grey an item out while something runs.
+      if (s.busy) return;
       return runPlaylistAction(id, {
         libraryId: s.playlist.id,
         name: s.playlist.name,

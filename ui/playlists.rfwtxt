@@ -34,7 +34,7 @@ widget PlaylistsPage = switch data.layout.mobile {
       TopInset(),
       Padding(
         padding: [24.0, 0.0, 24.0, 8.0],
-        child: PageHeader(title: "Playlists", actions: data.actions, onAction: event "action" {}),
+        child: PageHeader(title: "Playlists", caption: data.caption, actions: data.actions, onAction: event "action" {}),
       ),
       Expanded(child: PlaylistsBody(status: data.status, error: data.error, items: data.items, hasMore: data.hasMore)),
     ],

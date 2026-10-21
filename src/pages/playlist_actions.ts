@@ -26,7 +26,7 @@ export interface PlaylistActionTarget {
   deleted: () => void;
 }
 
-/** The `ActionRow` items. */
+/** The items of the page header's ⋯ menu (`StickyHeader.menu`). */
 export function playlistActions(busy: boolean, withOrder: boolean) {
   return [
     { id: 'rename', label: 'Rename', icon: 'pencil', disabled: busy },

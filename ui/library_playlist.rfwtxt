@@ -4,99 +4,88 @@ import core;
 import material;
 import elbert;
 
-widget LibraryPlaylistPage = Column(
-  crossAxisAlignment: "stretch",
-  children: [
-    TopInset(),
-    PageInset(bottom: 4.0, child: PageHeader(title: "Playlist")),
-    Expanded(
-      child: switch data.status {
-        "loading": Loader(),
-        "error": Message(text: data.error),
-        // Rename / Edit order / Sync / Delete float above the dock on a
-        // phone, where a thumb reaches them; inline under the header wider.
-        default: FloatingBar(
-          floating: switch data.canEdit {
-            true: ActionRow(floating: true, actions: data.actions, onAction: event "action" {}),
-            default: SizedBox(),
-          },
-          child: ScrollList(
-            padding: switch data.layout.mobile { true: [0.0, 8.0, 0.0, 0.0], default: [16.0, 8.0, 16.0, 0.0] },
-            children: [
-              Row(
+widget LibraryPlaylistPage = switch data.status {
+  "loading": Loader(),
+  "error": ErrorView(message: data.error),
+  default: Stagger(
+    durationMs: 500,
+    child: ScrollPage(
+      topInset: false,
+      bottomInset: "dock",
+      slivers: [
+        // Rename / Edit order / Sync / Delete are the header's ⋯ menu; a
+        // read-only playlist sends none, so it has no menu.
+        StickyHeader(
+          title: data.title,
+          subtitle: data.subtitle,
+          type: "PLAYLIST",
+          cover: data.cover,
+          info: data.info,
+          expanded: 450.0,
+          menu: data.actions,
+          onMenu: event "action" {},
+          onPlayAll: event "play" { index: 0 },
+          onShuffle: event "shuffle" {},
+        ),
+        SliverBox(
+          child: Padding(
+            padding: [16.0, 20.0, 16.0, 0.0],
+            child: SlideIn(
+              delayMs: 150,
+              child: Column(
                 crossAxisAlignment: "start",
                 children: [
-                  Cover(path: data.cover, size: 120.0, radiusPx: 12.0),
-                  SizedBox(width: 16.0),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: "start",
-                      children: [
-                        ThemedText(text: data.title, style: "headlineSmall", weight: 700),
-                        SizedBox(height: 4.0),
-                        ThemedText(text: data.countLine, style: "bodyMedium", color: "onSurfaceVariant"),
-                      ],
-                    ),
+                  Wrap(
+                    spacing: 12.0,
+                    runSpacing: 12.0,
+                    children: [
+                      Button(
+                        icon: "download",
+                        label: "Download all",
+                        busy: data.busy,
+                        disabled: switch data.hasTracks { true: false, default: true },
+                        onPressed: event "downloadAll" {},
+                      ),
+                      switch data.editing {
+                        true: Button(variant: "tonalFilled", icon: "circle-check", label: "Done reordering", onPressed: event "toggleEditing" {}),
+                        default: SizedBox(),
+                      },
+                    ],
                   ),
+                  switch data.hasDescription {
+                    true: Padding(
+                      padding: [0.0, 14.0, 0.0, 16.0],
+                      child: ExpandableText(text: data.description, maxWidth: 640.0),
+                    ),
+                    default: SizedBox(),
+                  },
                 ],
               ),
-              switch data.hasDescription {
-                true: Padding(
-                  padding: [0.0, 8.0, 0.0, 0.0],
-                  child: ThemedText(text: data.description, style: "bodySmall", color: "onSurfaceVariant"),
-                ),
-                default: SizedBox(),
-              },
-              SizedBox(height: 14.0),
-              Wrap(
-                spacing: 10.0,
-                runSpacing: 10.0,
-                children: [
-                  Button(variant: "filled", icon: "play", label: "Play", disabled: switch data.hasTracks { true: false, default: true }, onPressed: event "play" { index: 0 }),
-                  Button(
-                    variant: "outlined",
-                    icon: "download",
-                    label: "Download all",
-                    busy: data.busy,
-                    disabled: switch data.hasTracks { true: false, default: true },
-                    onPressed: event "downloadAll" {},
-                  ),
-                ],
-              ),
-              switch data.canEdit {
-                true: switch data.layout.mobile {
-                  true: SizedBox(),
-                  default: Padding(padding: [0.0, 10.0, 0.0, 0.0], child: ActionRow(actions: data.actions, onAction: event "action" {})),
-                },
-                default: SizedBox(),
-              },
-              SizedBox(height: 12.0),
-              switch data.editing {
-                true: Column(
-                  crossAxisAlignment: "start",
-                  children: [
-                    Button(variant: "tonalFilled", icon: "circle-check", label: "Done reordering", onPressed: event "toggleEditing" {}),
-                    SizedBox(height: 8.0),
-                    ReorderableTrackList(
-                      items: data.editItems,
-                      removeLabel: "Remove from playlist",
-                      onReorder: event "reorder" {},
-                      onRemove: event "remove" {},
-                    ),
-                  ],
-                ),
-                default: CompactTrackList(
-                  items: data.tracks,
-                  hasMore: data.hasMore,
-                  onLoadMore: event "more" {},
-                  onPlay: event "play" {},
-                  onMenu: event "menu" {},
-                ),
-              },
-            ],
+            ),
           ),
         ),
-      },
+        switch data.editing {
+          true: SliverBox(
+            child: Padding(
+              padding: [16.0, 16.0, 16.0, 0.0],
+              child: ReorderableTrackList(
+                items: data.editItems,
+                removeLabel: "Remove from playlist",
+                onReorder: event "reorder" {},
+                onRemove: event "remove" {},
+              ),
+            ),
+          ),
+          default: TrackList(
+            items: data.tracks,
+            hasMore: data.hasMore,
+            onLoadMore: event "more" {},
+            onPlay: event "play" {},
+            onMenu: event "menu" {},
+          ),
+        },
+        SliverGap(height: 12.0),
+      ],
     ),
-  ],
-);
+  ),
+};

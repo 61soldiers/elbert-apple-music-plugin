@@ -23,7 +23,13 @@ const card = (p: LibraryPlaylist) => ({
 
 function show(page: Page<PageData, State>) {
   const l = page.state.list;
-  update(page, { status: l.items.length ? 'ready' : 'empty', items: l.items.map(card), hasMore: l.hasMore });
+  const n = l.items.length;
+  update(page, {
+    status: n ? 'ready' : 'empty',
+    caption: n ? `${n}${l.hasMore ? '+' : ''} playlist${n === 1 && !l.hasMore ? '' : 's'}` : '',
+    items: l.items.map(card),
+    hasMore: l.hasMore,
+  });
 }
 
 async function load(page: Page<PageData, State>, force = false) {
@@ -44,6 +50,7 @@ definePage<PageData, State>('playlists', {
       ...sectionChrome(page, `${SECTION}/library`),
       actions: [{ id: 'new', label: 'New playlist', icon: 'plus', primary: true }],
       status: 'loading',
+      caption: '',
       items: [],
       hasMore: false,
     };

@@ -253,6 +253,18 @@ for the largest). Use `bestArtwork` only for art shown large.
   - Doubles are written `14.0`.
   - Never send null values.
 - Parse-check templates after editing them.
+- Elbert's header redesign (SDK 1.3), which the pages follow:
+  - **Collection actions go in the header's ⋯ menu** (`StickyHeader` `menu`/`onMenu`), never a row of
+    buttons under it: a playlist's Rename / Edit order / Sync / Delete (`playlist_actions.ts`) are that menu
+    on both playlist pages. The catalog page's menu also carries Go to artist and Downloads. The menu can't grey
+    an item out, so the event handler ignores a pick while busy. Playing and Download (it has a busy state)
+    stay buttons.
+  - `PageHeader` takes a `caption` (the Playlists count) and draws `actions` as labelled buttons; mark the
+    one main action `primary`.
+  - Tiles and rails gap at 4 (each tile pads its own 8), so don't pass `spacing` to `CardRail`.
+  - `StickyHeader` has a fixed height (`expanded: 450.0` here, as a narrow window wraps the ⋯ onto its own
+    row): keep its `info` chips to three, or Play/Shuffle/⋯ clip. Elbert's own pages stop at three.
+  - `Segmented` is a pill switcher.
 - Templates may `import common;` because every `ui` manifest key is a library name.
 
 ## Importing Apple's own history (privacy export)

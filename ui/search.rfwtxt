@@ -70,7 +70,7 @@ widget ResultStrip = Column(
   crossAxisAlignment: "stretch",
   children: [
     ResultTitle(text: args.title),
-    CardRail(size: "compact", spacing: 12.0, items: args.items, onTap: args.onTap),
+    CardRail(size: "compact", items: args.items, onTap: args.onTap),
     SizedBox(height: 20.0),
   ],
 );

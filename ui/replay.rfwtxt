@@ -181,7 +181,6 @@ widget ReplaySection = SliverBox(
 
 widget ReplayRail = CardRail(
   size: "replay",
-  spacing: 14.0,
   innerPadding: switch data.layout.mobile { true: 0.0, default: 20.0 },
   items: args.items,
   onTap: event "open" { rail: args.rail },
