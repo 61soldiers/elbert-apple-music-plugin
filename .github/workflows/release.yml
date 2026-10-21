@@ -88,6 +88,17 @@ jobs:
           # artifacts unpack as tool/qemu/out/qemu-<id>/…; the build script wants <id>/
           cd tool/qemu/out && for d in qemu-*; do mv "$d" "${d#qemu-}"; done
 
+      # The Android runtime pack is signed with one key for good: Android refuses to update
+      # an app signed with another. Without the secret a release simply has no Android pack.
+      - name: Android signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/android.jks"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/android.jks" >> "$GITHUB_ENV"
+          fi
+
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install --frozen-lockfile --cwd ../elbert-plugin-sdk
@@ -101,4 +112,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ORCHARD_SRC_DIR: ${{ github.workspace }}/.orchard-src
+          # The runner's own Android SDK and NDK build the Android runtime pack.
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'elbert' }}
         run: bunx --bun semantic-release
