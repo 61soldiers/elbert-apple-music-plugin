@@ -13,6 +13,10 @@
 //  - macOS (Apple silicon) and Windows: it runs in a small Linux virtual machine
 //    under a QEMU that ships in the vm pack (QEMU, the guest kernel and its image),
 //    which Orchard drives. Intel Macs have no pack, so they use a remote Orchard.
+//  - Android: Orchard and the daemon ride in a companion APK (the runtime pack), because
+//    Android only runs programs that arrived inside an installed APK. Elbert downloads
+//    and installs it when the plugin first needs it (`native.installRuntime`; Android
+//    asks the user to confirm); Orchard hosts the daemon under proot. See tool/android.
 //
 // Everything keeps the paths and names Elbert used before Apple Music became a
 // plugin — `<appSupport>/orchard`, the API key in a `.env` — so a signed-in
@@ -32,6 +36,8 @@ const LEGACY_PROJECT = 'elbert-orchard';
 const LEGACY_VOLUME = 'elbert-orchard_orchard-data';
 
 const RUNTIME_MANIFEST = 'assets/runtime.json';
+/** The Android runtime pack (tool/android/build_pack.sh); also in `elbert-plugin.json`. */
+const ANDROID_PACK = 'io.github.soldiers61.elbert.applemusic.runtime';
 const VERIFY_INTERVAL_MS = 30_000;
 const LOG_LINES = 400;
 const MAX_RESTARTS = 3;
@@ -123,7 +129,7 @@ export class ManagedOrchard {
     if (this.backend) return this.backend;
     const platform = await elbert.native.platform();
     const os = platform.os;
-    this.backend = os === 'linux' || os === 'macos' || os === 'windows' ? new NativeBackend(this, os) : new NoBackend();
+    this.backend = os === 'linux' || os === 'macos' || os === 'windows' || os === 'android' ? new NativeBackend(this, os) : new NoBackend();
     return this.backend;
   }
 
@@ -201,7 +207,7 @@ export class ManagedOrchard {
   }
 }
 
-/** Platforms with no way to host the Apple Music daemon yet (Android, for now). */
+/** Platforms with no way to host the Apple Music daemon (iOS, the web). */
 class NoBackend implements Backend {
   readonly supported = false;
   async ensure() {}
@@ -231,11 +237,18 @@ class NativeBackend implements Backend {
   /** Linux only: the VM pack is in use because namespaces are blocked. */
   private useVm = false;
   private downloadDir = '';
+  /** Android only: where the runtime pack's programs are, and the plugin's cache folder. */
+  private packDir = '';
+  private cacheDir = '';
 
   constructor(
     private readonly s: ManagedOrchard,
-    private readonly os: 'linux' | 'macos' | 'windows',
+    private readonly os: 'linux' | 'macos' | 'windows' | 'android',
   ) {}
+
+  private get android() {
+    return this.os === 'android';
+  }
 
   private get windows() {
     return this.os === 'windows';
@@ -245,6 +258,7 @@ class NativeBackend implements Backend {
     return this.os === 'macos' ? 'darwin' : this.os;
   }
   private get exe() {
+    if (this.android) return elbert.fs.join(this.packDir, 'liborchard.so');
     return elbert.fs.join(this.binDir, this.windows ? 'orchard.exe' : 'orchard');
   }
   private get qemuExe() {
@@ -266,6 +280,7 @@ class NativeBackend implements Backend {
     this.dataDir = elbert.fs.join(this.dir, 'data');
     this.vmDir = elbert.fs.join(this.dir, 'vm');
     this.downloadDir = elbert.fs.join(this.dir, 'downloads');
+    this.cacheDir = paths.cache;
     await elbert.fs.mkdir(this.dir);
     await elbert.fs.mkdir(this.dataDir);
   }
@@ -417,8 +432,32 @@ class NativeBackend implements Backend {
     throw new SetupError('Could not check the download: this system has no SHA-256 tool.');
   }
 
+  /**
+   * Android: the runtime pack is an installed app, not a download. Elbert fetches and installs
+   * it when it is missing or older than this plugin expects (Android asks the user to confirm;
+   * once an equal or newer one is there the call returns at once).
+   */
+  private async ensureAndroidPack() {
+    this.s.set('downloading', 'Installing what Apple Music needs. Android will ask you to confirm.');
+    try {
+      await elbert.native.installRuntime(ANDROID_PACK);
+    } catch (e) {
+      // A development build pins no pack, so one installed by hand (adb install) is used as it is.
+      if (errorCode(e) !== 'bad_args') throw new SetupError(errorText(e));
+    }
+    const pack = await elbert.native.runtime(ANDROID_PACK);
+    if (!pack) {
+      throw new SetupError(
+        'The Apple Music runtime for Android is not installed. Open the plugin again and confirm the installation, or connect to a remote Orchard server instead.',
+      );
+    }
+    if (!pack.extracted) throw new SetupError('The Apple Music runtime was installed without its programs. Reinstall it.');
+    this.packDir = pack.nativeLibraryDir;
+  }
+
   private async ensureBinary() {
     this.s.set('extracting');
+    if (this.android) return this.ensureAndroidPack();
     await this.ensurePack(`orchard-${this.goos}-${await this.arch()}`, this.binDir, this.windows ? 'orchard.exe' : 'orchard');
   }
 
@@ -450,6 +489,8 @@ class NativeBackend implements Backend {
    * Orchard reports; then the VM pack is fetched and the check repeated.
    */
   private async prepareRuntime() {
+    // Android hosts the daemon under proot, which needs nothing from the system.
+    if (this.android) return;
     if (this.os !== 'linux') {
       await this.ensureVm();
       return this.checkSandbox(this.vmEnv());
@@ -504,11 +545,14 @@ class NativeBackend implements Backend {
 
     this.output = [];
     this.stopping = false;
-    const vm = this.os === 'linux' && !this.useVm ? {} : this.vmEnv();
+    const vm = this.os === 'linux' && !this.useVm ? {} : this.android ? {} : this.vmEnv();
     const proc = await elbert.process.start(this.exe, [], {
       cwd: this.dir,
       env: {
         ...vm,
+        // Where the pack's programs are and a folder proot may keep its scratch in:
+        // only the app knows both (Orchard's launch_android.go).
+        ...(this.android ? { ORCHARD_ANDROID_LIB_DIR: this.packDir, ORCHARD_ANDROID_TMP_DIR: this.cacheDir } : {}),
         ORCHARD_API_KEY: key,
         ORCHARD_DATA_DIR: this.dataDir,
         ORCHARD_ADDR: `127.0.0.1:${PORT}`,

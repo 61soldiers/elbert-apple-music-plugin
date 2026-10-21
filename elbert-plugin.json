@@ -34,8 +34,14 @@
   "platforms": [
     "linux",
     "windows",
-    "macos"
+    "macos",
+    "android"
   ],
+  "android": {
+    "runtimePackages": [
+      "io.github.soldiers61.elbert.applemusic.runtime"
+    ]
+  },
   "migrate": {
     "settingsKeys": [
       "orchardEnabled",

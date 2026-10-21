@@ -7,8 +7,9 @@ compiled into Elbert behind `ENABLE_APPLE_MUSIC`. It must keep looking and behav
 did then, and existing users' setups must carry on untouched.
 
 - Plugin id `io.github.61soldiers.elbert.apple-music`; section route `/apple-music`.
-- **Desktop only** (manifest `platforms`: linux, windows, macos). Apple Music on phones was dropped
-  on purpose; Elbert refuses to install the plugin elsewhere. Don't reintroduce mobile code paths.
+- **Desktop and Android** (manifest `platforms`: linux, windows, macos, android). iOS is out of scope;
+  Elbert refuses to install the plugin there. Android runs Orchard from a companion APK (see
+  "Orchard on Android" below).
 - TypeScript, bundled by `@evolvedmesh/elbert-plugin-sdk` (`../elbert-plugin-sdk`, installed via
   `file:`) into one `plugin.js` that runs in QuickJS. There are **no** Node, browser or `URL`
   globals; everything outside the sandbox goes through the global `elbert`.
@@ -100,6 +101,30 @@ workflow checks out `@evolvedmesh/elbert-plugin-sdk` beside this repo, because `
 - **Orchard changes** are committed to orchard `main`, and then the bundle is regenerated
   (`tool/build_runtime.sh` builds the working tree, dirty or not — commit first).
 
+## Orchard on Android
+
+Android only runs programs that arrived inside an installed APK, so Orchard and Apple's daemon ship as a
+**runtime pack**: a headless companion APK (`io.github.soldiers61.elbert.applemusic.runtime`, ~60 MB, arm64 only).
+The user never opens it.
+
+- `tool/android/build_pack.sh [version]` builds it: Orchard for android/arm64 (cgo + NDK, for DNS), plus the
+  wrapper arm64 release (Apple's daemon and libraries, proot; pinned by sha256) renamed to `lib*.so`, proot's
+  loader carved out of proot. No Gradle: aapt2, javac, d8, zipalign and apksigner. Orchard's side is
+  `internal/wrapper/launch_android.go`.
+- A release signs it with one key for good (`ANDROID_KEYSTORE*` secrets); without it the release has no Android
+  pack. It then pins the APK in `elbert-plugin.json` → `android.runtimePacks` (url, sha256, versionCode), which is
+  what lets Elbert fetch it. Commit nothing else there by hand: the committed manifest only names
+  `android.runtimePackages`.
+- `managed.ts` (`NativeBackend`, `os === 'android'`) calls `elbert.native.installRuntime(pack)` (Elbert downloads,
+  checks the hash and hands it to Android's installer; **Android always asks the user to confirm**, and once to
+  allow Elbert to install apps), then `native.runtime` for `nativeLibraryDir`, then starts `liborchard.so` with
+  `ORCHARD_ANDROID_LIB_DIR` / `ORCHARD_ANDROID_TMP_DIR`. A development build pins no pack (`bad_args` is
+  ignored), so `adb install release/android/*.apk` and use it as it is.
+- No `uname`, `chmod`, `sha256sum` or Docker there; the desktop code that uses them is skipped on Android.
+- **Not verified on a device** (none was available): exec from another app's `nativeLibraryDir`, proot under the
+  daemon, the install prompt flow, 16 KB-page devices. Test these before a release. Redistributing Apple's
+  daemon libraries inside the APK is a decision for the maintainer (desktop users fetch them from upstream).
+
 ## Orchard, managed
 
 `orchard/managed.ts` starts Orchard as a child process of Elbert (`NoBackend` where the daemon has no host, so
@@ -123,7 +148,7 @@ to install.
   are in Orchard's CLAUDE.md.
 - **Only Linux has a Docker volume to move over**; macOS/Windows users sign in again. (If an old Docker
   container is still holding port 8080 there, it is used as it is, like any hand-run Orchard.)
-- **Android is not wired up yet** (the SDK's runtime-pack path; Orchard's proot launch exists).
+- **Android:** see "Orchard on Android" below.
 - Writes the `.env` key, runs `__check-sandbox`, starts Orchard with `ORCHARD_DATA_DIR`,
   `ORCHARD_ADDR=127.0.0.1:8080` and `ORCHARD_EXIT_WITH_PARENT=1` (so a crashed Elbert can't leave a signed-in
   daemon behind), and polls `/healthz`. `fs.extract` drops file modes, so executables are `chmod`ed.
