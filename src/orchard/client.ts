@@ -171,6 +171,8 @@ export interface SummaryEntry {
   name: string;
   playCount: number;
   listenTimeInMinutes: number;
+  firstPlayed?: string;
+  lastPlayed?: string;
   item?: Item;
 }
 
@@ -383,6 +385,8 @@ const entry = (j: J): SummaryEntry => ({
   name: str(j.name),
   playCount: num(j.playCount),
   listenTimeInMinutes: num(j.listenTimeInMinutes),
+  firstPlayed: optStr(j.firstPlayed),
+  lastPlayed: optStr(j.lastPlayed),
   item: j.item && typeof j.item === 'object' ? item(j.item) : undefined,
 });
 

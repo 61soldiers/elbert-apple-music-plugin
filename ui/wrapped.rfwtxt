@@ -1,0 +1,263 @@
+// Apple Music Wrapped: a year (or every year) as a story, one full-screen
+// slide per page of Elbert's StoryPager. Slides come from buildStory() in
+// src/replay/story.ts; a slide's `kind` picks its layout.
+
+import core;
+import material;
+import elbert;
+
+widget WrappedPage = switch data.status {
+  "loading": Loader(),
+  "error": ErrorView(message: data.error),
+  default: Stack(
+    fit: "expand",
+    children: [
+      StoryPager(
+        restartKey: data.restartKey,
+        backgrounds: [
+          ...for slide in data.story.slides: SlideBackdrop(slide: slide),
+        ],
+        children: [
+          ...for slide in data.story.slides: StorySlide(slide: slide),
+        ],
+      ),
+      Positioned(
+        top: 16.0,
+        start: 16.0,
+        child: Button(variant: "tonalFilled", icon: "arrow-left", label: "Replay", onPressed: event "replay" {}),
+      ),
+    ],
+  ),
+};
+
+// A slide's backdrop; the pager cross-fades them as it scrolls.
+widget SlideBackdrop = Stack(
+  fit: "expand",
+  children: [
+    GradientFill(kind: "linear", colors: [args.slide.bg1, args.slide.bg2], stops: [0.0, 1.0], angle: 0.08),
+    GradientFill(kind: "radial", colors: [args.slide.fg, args.slide.bg1], opacity: 0.12, centerX: -0.7, centerY: -0.8, radius: 1.0),
+    Orb(color: "tertiary", opacity: 0.30, size: 1.1, x: 0.9, y: -0.7, driftX: 0.2, driftY: 0.15, seconds: 22.0),
+    Orb(color: "primary", opacity: 0.28, size: 1.0, x: -0.9, y: 0.8, driftX: 0.15, driftY: 0.2, seconds: 30.0, phase: 0.4),
+    Waves(colors: [args.slide.fg, args.slide.fg], opacity: 0.07, baseline: 0.82, amplitude: 0.05, seconds: 16.0),
+    Particles(color: args.slide.fg, opacity: 0.4, count: 48, size: 2.6, speed: 0.025),
+  ],
+);
+
+// One slide's content (transparent: the backdrop is the pager's); its `kind` picks the layout.
+widget StorySlide = switch args.slide.kind {
+  "intro": IntroSlide(slide: args.slide),
+  "time": TimeSlide(slide: args.slide),
+  "counts": CountsSlide(slide: args.slide),
+  "topSong": TopSongSlide(slide: args.slide),
+  "songs": ListSlide(slide: args.slide, rail: "songs"),
+  "topArtist": TopArtistSlide(slide: args.slide),
+  "artists": ListSlide(slide: args.slide, rail: "artists"),
+  "albums": ListSlide(slide: args.slide, rail: "albums"),
+  "genres": GenresSlide(slide: args.slide),
+  "months": MonthsSlide(slide: args.slide),
+  "milestones": MilestonesSlide(slide: args.slide),
+  default: OutroSlide(slide: args.slide),
+};
+
+// The column every slide's content sits in: centred, a readable width on a wide page.
+widget SlideFrame = Center(
+  child: switch data.layout.narrow {
+    true: SlideColumn(align: args.align, children: args.children),
+    default: SizedBox(width: 780.0, child: SlideColumn(align: args.align, children: args.children)),
+  },
+);
+
+widget SlideColumn = Padding(
+  padding: [28.0, 56.0, 28.0, 40.0],
+  child: Column(mainAxisAlignment: "center", mainAxisSize: "min", crossAxisAlignment: args.align, children: args.children),
+);
+
+widget IntroSlide = SlideFrame(
+  align: "start",
+  children: [
+    Reveal(delayMs: 200, child: ThemedText(text: args.slide.caption, style: "labelLarge", weight: 700, letterSpacing: 4.0, color: args.slide.fg)),
+    SizedBox(height: 8.0),
+    Reveal(delayMs: 350, child: FitText(text: args.slide.title, size: 168.0, minSize: 40.0, weight: 900, color: args.slide.fg)),
+    SizedBox(height: 12.0),
+    Reveal(delayMs: 650, child: ThemedText(text: "Replay", style: "displayMedium", size: 56.0, weight: 300, color: args.slide.fg)),
+    SizedBox(height: 28.0),
+    Reveal(delayMs: 900, child: ThemedText(text: args.slide.line, style: "titleLarge", color: args.slide.fg)),
+  ],
+);
+
+widget TimeSlide = SlideFrame(
+  align: "start",
+  children: [
+    Reveal(delayMs: 150, child: ThemedText(text: "This year you listened for", style: "titleLarge", color: args.slide.fg)),
+    CountUp(value: args.slide.value, size: 150.0, weight: 900, color: args.slide.fg, delayMs: 350, durationMs: 1800),
+    Reveal(delayMs: 600, child: ThemedText(text: args.slide.noun, style: "displaySmall", size: 44.0, weight: 700, color: args.slide.fg)),
+    SizedBox(height: 24.0),
+    Reveal(delayMs: 1500, child: ThemedText(text: args.slide.line, style: "titleMedium", color: args.slide.fg)),
+  ],
+);
+
+widget CountsSlide = SlideFrame(
+  align: "start",
+  children: [
+    Reveal(delayMs: 150, child: ThemedText(text: "Along the way, you explored", style: "titleLarge", color: args.slide.fg)),
+    SizedBox(height: 20.0),
+    Wrap(
+      spacing: 36.0,
+      runSpacing: 22.0,
+      children: [
+        ...for t in args.slide.tiles: Column(
+          crossAxisAlignment: "start",
+          mainAxisSize: "min",
+          children: [
+            CountUp(value: t.value, size: 84.0, weight: 900, color: args.slide.fg, delayMs: 300, durationMs: 1500),
+            ThemedText(text: t.label, style: "titleLarge", weight: 600, color: args.slide.fg),
+          ],
+        ),
+      ],
+    ),
+  ],
+);
+
+widget TopSongSlide = SlideFrame(
+  align: "start",
+  children: [
+    Reveal(delayMs: 100, child: ThemedText(text: "Your number one song", style: "titleLarge", color: args.slide.fg)),
+    SizedBox(height: 18.0),
+    Reveal(
+      delayMs: 300,
+      child: GestureDetector(
+        onTap: event "open" { rail: "topSong", index: 0 },
+        child: Cover(path: args.slide.cover, size: 260.0, radiusPx: 24.0),
+      ),
+    ),
+    SizedBox(height: 18.0),
+    Reveal(delayMs: 500, child: FitText(text: args.slide.title, size: 44.0, minSize: 22.0, weight: 800, color: args.slide.fg, maxLines: 2)),
+    Reveal(delayMs: 600, child: ThemedText(text: args.slide.subtitle, style: "titleMedium", color: args.slide.fg, maxLines: 1)),
+    SizedBox(height: 14.0),
+    Row(
+      crossAxisAlignment: "end",
+      mainAxisSize: "min",
+      children: [
+        CountUp(value: args.slide.plays, size: 80.0, weight: 900, color: args.slide.fg, delayMs: 800, durationMs: 1500),
+        SizedBox(width: 12.0),
+        Padding(padding: [0.0, 0.0, 0.0, 14.0], child: ThemedText(text: "plays", style: "titleLarge", weight: 600, color: args.slide.fg)),
+      ],
+    ),
+    Reveal(delayMs: 1700, child: ThemedText(text: args.slide.line, style: "bodyLarge", color: args.slide.fg)),
+    switch args.slide.hasSince {
+      true: Reveal(delayMs: 1800, child: ThemedText(text: args.slide.since, style: "bodyMedium", color: args.slide.fg)),
+      default: SizedBox(),
+    },
+  ],
+);
+
+widget TopArtistSlide = SlideFrame(
+  align: "start",
+  children: [
+    Reveal(delayMs: 100, child: ThemedText(text: "Your top artist", style: "titleLarge", color: args.slide.fg)),
+    SizedBox(height: 18.0),
+    Reveal(
+      delayMs: 300,
+      child: GestureDetector(
+        onTap: event "open" { rail: "topArtist", index: 0 },
+        child: Cover(path: args.slide.cover, size: 260.0, radiusPx: 130.0),
+      ),
+    ),
+    SizedBox(height: 18.0),
+    Reveal(delayMs: 500, child: FitText(text: args.slide.title, size: 76.0, minSize: 30.0, weight: 900, color: args.slide.fg, maxLines: 2)),
+    Reveal(delayMs: 700, child: ThemedText(text: args.slide.caption, style: "headlineSmall", weight: 700, color: args.slide.fg)),
+    Reveal(delayMs: 900, child: ThemedText(text: args.slide.line, style: "titleMedium", color: args.slide.fg)),
+  ],
+);
+
+// Top songs / artists / albums: a ranked list that lands row by row.
+widget ListSlide = SlideFrame(
+  align: "stretch",
+  children: [
+    Reveal(delayMs: 100, child: ThemedText(text: args.slide.heading, style: "headlineLarge", size: 36.0, weight: 800, color: args.slide.fg)),
+    SizedBox(height: 18.0),
+    ...for r in args.slide.rows: Reveal(
+      delayMs: r.delayMs,
+      child: GestureDetector(
+        onTap: event "open" { rail: args.rail, index: r.index },
+        child: Padding(
+          padding: [0.0, 7.0],
+          child: Row(
+            crossAxisAlignment: "center",
+            children: [
+              SizedBox(width: 44.0, child: ThemedText(text: r.rank, style: "headlineMedium", size: 34.0, weight: 900, color: args.slide.fg)),
+              Cover(path: r.cover, size: 60.0, radiusPx: 12.0),
+              SizedBox(width: 14.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: "start",
+                  mainAxisSize: "min",
+                  children: [
+                    ThemedText(text: r.title, style: "titleMedium", weight: 700, color: args.slide.fg, maxLines: 1),
+                    ThemedText(text: r.subtitle, style: "bodyMedium", color: args.slide.fg, maxLines: 1),
+                  ],
+                ),
+              ),
+              SizedBox(width: 10.0),
+              ThemedText(text: r.caption, style: "labelLarge", weight: 700, color: args.slide.fg),
+            ],
+          ),
+        ),
+      ),
+    ),
+  ],
+);
+
+widget GenresSlide = SlideFrame(
+  align: "stretch",
+  children: [
+    Reveal(delayMs: 100, child: ThemedText(text: args.slide.heading, style: "titleLarge", color: args.slide.fg)),
+    Reveal(delayMs: 250, child: FitText(text: args.slide.lead, size: 72.0, minSize: 28.0, weight: 900, color: args.slide.fg, maxLines: 1)),
+    SizedBox(height: 18.0),
+    Reveal(delayMs: 600, child: ShareBars(items: args.slide.bars)),
+  ],
+);
+
+widget MonthsSlide = SlideFrame(
+  align: "stretch",
+  children: [
+    Reveal(delayMs: 100, child: ThemedText(text: args.slide.heading, style: "titleLarge", color: args.slide.fg)),
+    Reveal(delayMs: 250, child: FitText(text: args.slide.lead, size: 80.0, minSize: 30.0, weight: 900, color: args.slide.fg)),
+    Reveal(delayMs: 400, child: ThemedText(text: args.slide.line, style: "titleMedium", color: args.slide.fg)),
+    SizedBox(height: 20.0),
+    Reveal(delayMs: 600, child: BarChart(bars: args.slide.bars, height: 190.0, animationKey: args.slide.animationKey)),
+  ],
+);
+
+widget MilestonesSlide = SlideFrame(
+  align: "stretch",
+  children: [
+    Reveal(delayMs: 100, child: ThemedText(text: args.slide.heading, style: "headlineLarge", size: 36.0, weight: 800, color: args.slide.fg)),
+    SizedBox(height: 18.0),
+    Reveal(delayMs: 400, child: BadgeRail(items: args.slide.badges)),
+  ],
+);
+
+widget OutroSlide = SlideFrame(
+  align: "start",
+  children: [
+    Reveal(delayMs: 150, child: FitText(text: args.slide.title, size: 64.0, minSize: 28.0, weight: 900, color: args.slide.fg)),
+    SizedBox(height: 10.0),
+    Reveal(delayMs: 400, child: ThemedText(text: args.slide.line, style: "titleLarge", color: args.slide.fg)),
+    SizedBox(height: 28.0),
+    Reveal(
+      delayMs: 700,
+      child: Wrap(
+        spacing: 12.0,
+        runSpacing: 10.0,
+        children: [
+          switch args.slide.hasPlaylist {
+            true: Button(variant: "filled", icon: "list-music", label: "Play your Replay playlist", onPressed: event "playlist" {}),
+            default: SizedBox(),
+          },
+          Button(variant: "tonalFilled", icon: "chart-no-axes-column", label: "Full Replay", onPressed: event "replay" {}),
+        ],
+      ),
+    ),
+  ],
+);

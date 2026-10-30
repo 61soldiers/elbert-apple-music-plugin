@@ -165,6 +165,7 @@ export const routes = {
   artist: (id: string) => `${SECTION}/artists/${enc(id)}`,
   libraryPlaylist: (id: string) => `${SECTION}/library/playlists/${enc(id)}`,
   replay: (id: string) => `${SECTION}/replay/${enc(id)}`,
+  wrapped: (year: string) => `${SECTION}/replay/wrapped/${enc(year)}`,
 };
 
 /** Opens a card: a page for most things; a station *plays*, having no list to show. */

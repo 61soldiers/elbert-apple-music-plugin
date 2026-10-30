@@ -4,5 +4,13 @@
     "types": ["bun"],
     "skipLibCheck": true
   },
-  "include": [".", "../src/privacy/parse.ts", "../src/shelves.ts"]
+  "include": [
+    ".",
+    "../src/privacy/parse.ts",
+    "../src/shelves.ts",
+    "../src/replay/time.ts",
+    "../src/replay/alltime.ts",
+    "../src/replay/story.ts",
+    "../src/replay/detail.ts"
+  ]
 }
