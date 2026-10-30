@@ -1,7 +1,7 @@
 {
   "id": "io.github.61soldiers.elbert.apple-music",
   "name": "Apple Music",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "apiVersion": 1,
   "description": "Stream, download and browse your Apple Music subscription through Orchard, a self-hosted server that signs in as you.",
   "author": "61soldiers",
@@ -45,9 +45,9 @@
     "runtimePacks": [
       {
         "package": "io.github.soldiers61.elbert.applemusic.runtime",
-        "url": "https://github.com/61soldiers/elbert-apple-music-plugin/releases/download/v2.4.0/apple-music-runtime-2.4.0.apk",
-        "sha256": "b44fd2705403a2bdb882dcff7123dafafe4fa5418dee51f297888c0418ab4c77",
-        "versionCode": 29876613
+        "url": "https://github.com/61soldiers/elbert-apple-music-plugin/releases/download/v2.5.0/apple-music-runtime-2.5.0.apk",
+        "sha256": "2218a2b826bf1eefbfc8e9bf306471fdb3008804ea63ff18a734382ff4b29a18",
+        "versionCode": 29889647
       }
     ]
   },
