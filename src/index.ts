@@ -11,6 +11,7 @@ import { orchard } from './orchard/client';
 import { errorText } from './pages/common';
 import { SECTION } from './playback';
 import { resync } from './playlists';
+import { initTimeUnit } from './replay/unit';
 
 import './pages/home';
 import './pages/search';
@@ -20,6 +21,7 @@ import './pages/library_playlist';
 import './pages/detail';
 import './pages/artist';
 import './pages/replay';
+import './pages/wrapped';
 import './pages/downloads';
 import './pages/settings';
 import './pages/privacy';
@@ -27,6 +29,7 @@ import './pages/songs';
 
 elbert.onActivate(async () => {
   await startConnection();
+  await initTimeUnit();
   startActivity();
 
   await elbert.ui.setNavigation({
@@ -59,7 +62,8 @@ elbert.onActivate(async () => {
     { path: `${SECTION}/songs/:id`, page: 'songDetail', widget: 'detail:DetailPage', transition: 'slide' },
     { path: `${SECTION}/artists/:id`, page: 'artist', widget: 'artist:ArtistPage', transition: 'slide' },
     { path: `${SECTION}/replay`, page: 'replay', widget: 'replay:ReplayPage' },
-    { path: `${SECTION}/replay/:id`, page: 'replayMonth', widget: 'replay:ReplayMonthPage', transition: 'slide' },
+    { path: `${SECTION}/replay/:id`, page: 'replay', widget: 'replay:ReplayPage' },
+    { path: `${SECTION}/replay/wrapped/:year`, page: 'wrapped', widget: 'wrapped:WrappedPage', transition: 'slide' },
     { path: `${SECTION}/downloads`, page: 'downloads', widget: 'downloads:DownloadsPage' },
     { path: `${SECTION}/settings`, host: 'settings' },
     { path: `${SECTION}/settings/:section`, host: 'settingsSection', transition: 'slide' },

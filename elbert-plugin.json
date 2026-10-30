@@ -17,6 +17,7 @@
     "detail": "ui/detail.rfwtxt",
     "artist": "ui/artist.rfwtxt",
     "replay": "ui/replay.rfwtxt",
+    "wrapped": "ui/wrapped.rfwtxt",
     "downloads": "ui/downloads.rfwtxt",
     "settings": "ui/settings.rfwtxt",
     "privacy": "ui/privacy.rfwtxt"

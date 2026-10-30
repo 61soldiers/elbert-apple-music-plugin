@@ -51,7 +51,8 @@ src/
   privacy/import.ts    streams the export's files in (fs.openCsv) and hands plays to history.import
   ids.ts link.ts html.ts format.ts
   cards.ts shelves.ts  card shape + Home's shelf order/Replay card (pure; tested in test/)
-  pages/               one module per page (common.ts, songs.ts, setup.ts, home.ts, …)
+  replay/              Replay's pure parts: time.ts (hours/minutes), alltime.ts, story.ts (Wrapped slides), detail.ts ("In Elbert"), load.ts, unit.ts
+  pages/               one module per page (common.ts, songs.ts, setup.ts, home.ts, replay.ts, wrapped.ts, …)
   index.ts             onActivate wiring: nav, routes, settings, actions, lyrics
 ui/                    common.rfwtxt (setup flow, sign-in, picker) + one file per page
 assets/runtime.json    pins the runtime packs by sha256 (generated, gitignored); assets/runtime/ holds them in dev builds
@@ -252,9 +253,31 @@ to install.
   reinstate them without a plan for the request volume.
 
 **Replay** is Apple's summary, not Elbert's `/stats`, and the two are never merged.
-- Songs have plays but **no listen time**.
-- The year in progress has **no totals**, so sum its months and say so.
+- Songs have plays but **no listen time**; their "≈ N min" is plays × the song's length and says so.
+- The year in progress has **no totals**, so sum its months and say so. Its **song counts are a snapshot**
+  Apple refreshes on its own schedule (measured: `lastPlayed` of the top songs was 8 days behind, months
+  stop at the last finished one), so they lag the hours; the page says that, with the snapshot's date.
 - Genres have no catalog page and are not tappable.
+- **The Replay tab** (`pages/replay.ts`, `ui/replay.rfwtxt`) has three modes: Year, **Month** (any month of any
+  year) and **All time**, plus an Auto/Hours/Minutes switch. `/replay/:id` opens a year or month directly.
+- **Apple only ranks by year**: a month's summary has listen time, unique counts and milestones, never rankings
+  (Orchard drops the year's rows Apple repeats there). So a month's top artists/albums/songs *with minutes*,
+  and a day chart, come from **Elbert's history of Apple Music plays** (`history.stats`, provider `Apple
+  Music`: streamed here + the privacy import) under an "In Elbert" heading, with artwork borrowed from
+  Apple's year rankings by name. A month Apple hasn't published yet (the current one) is offered from
+  `history.periods` alone. Streamed (`applemusic-stream:`) and downloaded (`applemusic:`) rows of one song are
+  merged (`mergeTracks`).
+- **All time** (`replay/alltime.ts`) folds every year: totals add exactly; rankings add each year's top 100,
+  so a song that never made a year's list isn't counted (the page says so). No unique counts: they don't add.
+- **Hours/minutes** (`replay/time.ts`, pure and tested; `replay/unit.ts`) is `elbert.stats.timeUnit` where
+  Elbert has it, shared with Elbert's own `/stats` and Settings; on an older Elbert it falls back to plugin
+  storage. `elbert.stats` existing is also how the plugin knows `StoryPager`/`CountUp` exist, so **Wrapped**
+  is hidden without it.
+- **Wrapped** (`pages/wrapped.ts`, `ui/wrapped.rfwtxt`, `replay/story.ts` pure and tested) is the animated
+  scroll-through: one `StoryPager` page per slide, each slide built only on arrival so its `Reveal`s and
+  `CountUp`s play then. Slides with nothing to say are left out. Never put a null in slide data.
+  Slides holding host charts (`BarChart`, `ShareBars`, `BadgeRail`) keep to container colour roles, since
+  the host draws their text in `onSurface`.
 
 **Phone dock.** Inside `/apple-music` the dock is Home · Search · Library · Replay · Settings
 (`setNavigation` compact). Settings is `/apple-music/settings`, Elbert's own Settings mounted under
