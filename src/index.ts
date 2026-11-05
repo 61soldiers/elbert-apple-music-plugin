@@ -107,6 +107,17 @@ elbert.onActivate(async () => {
     },
   ]);
 
+  // The last song, after a restart: a stream's URL carries the API key, so
+  // Elbert doesn't keep it and asks for a fresh one. An older Elbert has no
+  // such call.
+  const player = elbert.player as typeof elbert.player & {
+    resumeStream?: (fn: (track: { id: string }) => string | null) => Promise<void>;
+  };
+  await player.resumeStream?.((track) => {
+    const id = streamedCatalogIdOf(track.id);
+    return id && orchard.isConfigured ? orchard.streamUrl(id) : null;
+  });
+
   // Streams only: a downloaded song's lyrics are the .lrc sidecar written
   // next to its file, which Elbert finds like any other local file's.
   await elbert.lyrics.provide(async (track) => {
