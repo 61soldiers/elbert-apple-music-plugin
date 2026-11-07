@@ -3,7 +3,7 @@
 
 import { expect, test } from 'bun:test';
 import type { Item, RecommendationGroup, Summary, SummaryIndex } from '../src/orchard/client';
-import { buildShelves, RECENT_KEY, replayCard, shelfData, shelfItem } from '../src/shelves';
+import { buildShelves, pickSpotlight, RECENT_KEY, replayCard, shelfData, shelfItem } from '../src/shelves';
 
 const item = (id: string, type = 'albums', name = id): Item => ({ id, type, name, durationMs: 0 });
 const group = (id: string, title: string, items: Item[], reason?: string): RecommendationGroup => ({ id, title, items, reason });
@@ -37,6 +37,24 @@ test('Apple’s own Recently Played group stands in when that call is empty', ()
 test('Top Picks leads, as feature cards, when Apple sends it', () => {
   const shelves = buildShelves([...GROUPS, group('1', 'Top Picks for You', [item('t1')])], [item('r1')]);
   expect(shelves[0]).toMatchObject({ key: '1', kind: 'feature' });
+});
+
+test('the account’s own mixes are drawn as big tiles', () => {
+  const shelves = buildShelves(GROUPS, [item('r1')]);
+  expect(shelves.find((s) => s.key === '6')?.kind).toBe('feature');
+});
+
+test('the spotlight is the New Music mix, found by name in any group', () => {
+  const mix = { ...item('nm', 'playlists', 'New Music'), curatorName: 'Apple Music for You' };
+  const spot = pickSpotlight([...GROUPS, group('x', 'Something', [mix])], [item('r1')]);
+  expect(spot).toMatchObject({ eyebrow: 'YOUR WEEKLY MIX', details: 'Apple Music for You' });
+  expect(spot?.item.id).toBe('nm');
+});
+
+test('without New Music the spotlight falls back to a mix, then to the last play', () => {
+  expect(pickSpotlight(GROUPS, [item('r1')])).toMatchObject({ eyebrow: 'MADE FOR YOU', item: { id: 'p1' } });
+  expect(pickSpotlight([], [item('r1')])).toMatchObject({ eyebrow: 'JUMP BACK IN', item: { id: 'r1' } });
+  expect(pickSpotlight([], [])).toBeNull();
 });
 
 test('station shelves are drawn as stations, whatever their title', () => {

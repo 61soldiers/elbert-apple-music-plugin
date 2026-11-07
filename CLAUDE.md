@@ -229,10 +229,17 @@ to install.
   links.
 - "Recently Added" is `recent: true, limit: 30`. The full album list stays alphabetical.
 
-**Home** is deliberately just the account's own music, laid out like the Apple Music app's.
-- The "New Music" hero sits with the pins beside it on desktop. A phone shows the hero alone,
-  and its pins live on Library. The hero is found by searching item **names** across every
-  recommendation group.
+**Home** is deliberately just the account's own music, laid out like Elbert's own Home and drawn
+with its parts (no greeting: that is Elbert's Home's alone).
+- A `SpotlightCard` (Elbert's now-playing card) on the "New Music" mix, with Play and Open, and a
+  Pinned panel (four pins, See all → Library) beside it when the page is `layout.expanded`; stacked
+  with the pins as chips below that; a phone shows the spotlight alone, its pins living on Library.
+  The mix is found by searching item **names** across every recommendation group; without it the
+  spotlight is the first "Made for You" mix, then the last play (`pickSpotlight`, tested).
+- Every tile has Elbert's hover Play (`CardRail onPlay` → `playItem`), which fetches the tracks
+  only when pressed. "Made for You" and Top Picks are big tiles; shelf titles are `SectionHeading`
+  with Apple's reason as the caption. Replay is a banner at the end.
+- An Elbert without these parts (`modern` false) gets `ClassicHome`, the previous layout.
 - Below it is a feed of **shelves** (`src/shelves.ts`, pure and tested): one per group of
   `/v1/me/recommendations` (MusicKit's Get Recommendations: the whole feed in one answer), plus
   Recently Played (its own, fresher call; Apple's own group of that name is dropped unless that
@@ -301,17 +308,32 @@ for the largest). Use `bestArtwork` only for art shown large.
   - Doubles are written `14.0`.
   - Never send null values.
 - Parse-check templates after editing them.
+- **Detail pages (album/playlist/song, artist, your own playlist) are built from Elbert's own detail-page
+  parts**, so they look like Elbert's and change when Elbert's do: `StickyHeader` with a `summary` line
+  (Elbert's wording: `2021 · 12 tracks · 48 min`, `30 songs · 1 hr 52 min`, via `formatCount` /
+  `formatReadableDuration`, which match Elbert's) and Download *in the header*; albums, songs and
+  artists send a `hero` (their artwork at 1600 px; an artist's with `heroPhoto`), drawn across the
+  whole header as Elbert's own album and artist pages do (playlists have none, as in Elbert); About in the ⋯ menu and
+  on the summary opens Elbert's About sheet (`elbert.ui.details`, via `showAbout`) with the facts, notes
+  and credit; a `TracksHeading` (Elbert's title + cards/table switch); `TrackList` rows that follow the
+  user's track table (`songRow` sends `album`, `durationMs`, `year`, `genre`, `trackNumber`, …; lists pass
+  `provider: "Apple Music"`); `ScrollPage(bottomInset: "header")`. Album rows gap 8, playlist rows don't,
+  as in Elbert. A Download all's progress line sits under the header.
+  - **Older Elbert:** these arrived together, after SDK 1.5; `hasDetailPages()` (`elbert.ui.details`
+    exists) sends `modern`, and each template switches on it to keep the previous layout (info chips at
+    `expanded: 450.0`, the Download row, notes/bio/description under the header). Keep both paths working
+    until the plugin can require that Elbert.
 - Elbert's header redesign (SDK 1.3), which the pages follow:
   - **Collection actions go in the header's ⋯ menu** (`StickyHeader` `menu`/`onMenu`), never a row of
-    buttons under it: a playlist's Rename / Edit order / Sync / Delete (`playlist_actions.ts`) are that menu
-    on both playlist pages. The catalog page's menu also carries Go to artist and Downloads. The menu can't grey
-    an item out, so the event handler ignores a pick while busy. Playing and Download (it has a busy state)
-    stay buttons.
+    buttons under it: a playlist's Reorder or remove songs / Rename / Sync to library / Delete playlist
+    (`playlist_actions.ts`, worded as Elbert's playlist page) are that menu on both playlist pages. The
+    catalog page's menu also carries About, Go to artist and Downloads. The menu can't grey an item out, so
+    the event handler ignores a pick while busy. Playing and Download (it has a busy state) stay buttons.
   - `PageHeader` takes a `caption` (the Playlists count) and draws `actions` as labelled buttons; mark the
     one main action `primary`.
   - Tiles and rails gap at 4 (each tile pads its own 8), so don't pass `spacing` to `CardRail`.
-  - `StickyHeader` has a fixed height (`expanded: 450.0` here, as a narrow window wraps the ⋯ onto its own
-    row): keep its `info` chips to three, or Play/Shuffle/⋯ clip. Elbert's own pages stop at three.
+  - `StickyHeader` has a fixed height (Elbert's 380 with a summary; `expanded: 450.0` on the older
+    layout, as chips wrap the ⋯ onto its own row there): keep `info` chips to three, or Play/Shuffle/⋯ clip.
   - `Segmented` is a pill switcher.
 - Templates may `import common;` because every `ui` manifest key is a library name.
 

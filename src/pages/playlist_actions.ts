@@ -1,4 +1,4 @@
-// Rename / Edit order / Sync to library / Delete for one of the account's own
+// Reorder or remove songs / Rename / Sync to library / Delete for one of the account's own
 // playlists — shared by both pages a playlist can open on. The catalog page
 // and the library page are reached by different routes depending on where it
 // was tapped (a pin, a Home rail, a search result and the Playlists page
@@ -16,9 +16,9 @@ export interface PlaylistActionTarget {
   name: string;
   /** The playlist's *complete* track list: a sync writes exactly what it's given. */
   loadAll: () => Promise<Song[]>;
-  /** Reorder in place; when absent, Edit order opens the library page that can. */
+  /** Reorder in place; when absent, reordering opens the library page that can. */
   editOrder?: () => Promise<void>;
-  /** Hide Edit order entirely (an empty playlist). */
+  /** Hide reordering entirely (an empty playlist). */
   noOrder?: boolean;
   setBusy: (busy: boolean) => void;
   renamed: (name: string) => void;
@@ -26,13 +26,23 @@ export interface PlaylistActionTarget {
   deleted: () => void;
 }
 
-/** The items of the page header's ⋯ menu (`StickyHeader.menu`). */
-export function playlistActions(busy: boolean, withOrder: boolean) {
+/**
+ * The items of the page header's ⋯ menu (`StickyHeader.menu`), worded and
+ * ordered as on Elbert's own playlist page. [editing] turns "Reorder or remove
+ * songs" into "Done editing".
+ */
+export function playlistActions(busy: boolean, withOrder: boolean, editing = false) {
   return [
-    { id: 'rename', label: 'Rename', icon: 'pencil', disabled: busy },
-    ...(withOrder ? [{ id: 'order', label: 'Edit order', icon: 'list-ordered', disabled: busy }] : []),
+    ...(withOrder
+      ? [
+          editing
+            ? { id: 'order', label: 'Done editing', icon: 'circle-check', disabled: busy }
+            : { id: 'order', label: 'Reorder or remove songs', icon: 'list-checks', disabled: busy },
+        ]
+      : []),
+    { id: 'rename', label: 'Rename', icon: 'pencil-line', disabled: busy },
     { id: 'sync', label: 'Sync to library', icon: 'folder-sync', busy, disabled: busy },
-    { id: 'delete', label: 'Delete', icon: 'trash-2', destructive: true, disabled: busy },
+    { id: 'delete', label: 'Delete playlist', icon: 'trash-2', destructive: true, disabled: busy },
   ];
 }
 

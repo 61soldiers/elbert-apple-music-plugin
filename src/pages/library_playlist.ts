@@ -1,7 +1,8 @@
 // One of the account's library playlists — the page your own playlists open
-// on, and the only one that can reorder: rename, edit order (drag, ✕ to
-// remove), sync to library and delete all go straight to Apple, so they show
-// up in Apple's own apps too.
+// on, and the only one that can reorder: reorder or remove (drag, ✕ to
+// remove), rename, sync to library and delete all go straight to Apple, so
+// they show up in Apple's own apps too. Laid out as Elbert's own playlist
+// page is (on an Elbert that has its pieces; see `hasDetailPages`).
 //
 // Every edit needs the *whole* playlist: Apple has no "move one track", so
 // an edit replaces the full list and anything never loaded would be dropped.
@@ -12,11 +13,12 @@ import type { Page } from '@evolvedmesh/elbert-plugin-sdk';
 import type { Paged } from '../cache';
 import { invalidateLibraryPlaylists, libraryPlaylist, libraryPlaylistTracks } from '../data';
 import { downloadSongs } from '../downloads';
+import { formatCount, formatDuration, formatReadableDuration } from '../format';
 import { stripHtml } from '../html';
 import { type LibraryPlaylist, type Song, sizedArtwork } from '../orchard/client';
 import { playSongs } from '../playback';
 import { setTracks } from '../playlists';
-import { definePage, errorText, type PageData, update } from './common';
+import { definePage, errorText, hasDetailPages, type PageData, showAbout, update } from './common';
 import { playlistActions, runPlaylistAction } from './playlist_actions';
 import { SongList } from './tracks';
 
@@ -37,26 +39,43 @@ const tracks = (s: State) => s.working ?? s.paged?.items ?? s.playlist?.tracks ?
 function render(page: P) {
   const s = page.state;
   if (!s.playlist) return;
+  const modern = hasDetailPages();
   const list = tracks(s);
   const more = s.working == null && !!s.paged?.hasMore;
   const n = list.length;
+  const description = stripHtml(s.playlist.description).trim();
+  const totalMs = list.reduce((sum, t) => sum + t.durationMs, 0);
   update(page, {
     status: 'ready',
+    modern,
     title: s.playlist.name,
     cover: sizedArtwork(s.playlist.artwork, 240),
     subtitle: s.playlist.canEdit ? 'Your playlist' : 'Read-only',
-    info: [{ label: 'Tracks', value: `${n}${more ? '+' : ''}` }],
-    hasDescription: !!stripHtml(s.playlist.description),
-    description: stripHtml(s.playlist.description),
+    // Elbert's playlist header: `30 songs · 1 hr 52 min`.
+    summary: `${more ? `${n}+ songs` : formatCount(n, 'song')} · ${formatReadableDuration(totalMs)}`,
+    hasAbout: !!description,
+    info: modern ? [] : [{ label: 'Tracks', value: `${n}${more ? '+' : ''}` }],
+    hasDescription: !modern && !!description,
+    description,
     hasTracks: n > 0,
-    // The header's ⋯ menu; a read-only playlist has none.
-    actions: s.playlist.canEdit ? playlistActions(s.busy, n > 0) : [],
+    // The header's ⋯ menu; a read-only playlist has none but About.
+    actions: [
+      ...(modern && description ? [{ id: 'about', label: 'About', icon: 'info' }] : []),
+      ...(s.playlist.canEdit ? playlistActions(s.busy, n > 0, s.editing) : []),
+    ],
+    downloadLabel: n > 0 && modern ? `Download (${n}${more ? '+' : ''})` : 'Download all',
     busy: s.busy,
     editing: s.editing,
     tracks: s.editing ? [] : s.list.rows({ removable: s.playlist.canEdit }),
-    editItems: s.editing ? list.map((t) => ({ id: t.id, title: t.name, artist: t.artistName, cover: sizedArtwork(t.artwork, 88) })) : [],
+    editItems: s.editing
+      ? list.map((t) => ({ id: t.id, title: t.name, artist: t.artistName, cover: sizedArtwork(t.artwork, 120), duration: formatDuration(t.durationMs) }))
+      : [],
     hasMore: more,
   });
+}
+
+function about(s: State) {
+  return showAbout(s.playlist.name, [], stripHtml(s.playlist.description).trim());
 }
 
 async function load(page: P) {
@@ -148,7 +167,7 @@ definePage<PageData, State>('libraryPlaylist', {
     s.list = new SongList(() => render(page));
     s.list.watch(page);
     void load(page);
-    return { status: 'loading', editing: false, tracks: [], editItems: [], info: [], actions: [] };
+    return { status: 'loading', modern: hasDetailPages(), editing: false, tracks: [], editItems: [], info: [], actions: [] };
   },
   events: {
     play(page, { index }) {
@@ -193,8 +212,12 @@ definePage<PageData, State>('libraryPlaylist', {
       next.splice(index, 1);
       return pushOrder(page, next);
     },
+    about(page) {
+      if (page.state.playlist?.description) return about(page.state);
+    },
     action(page, { id }) {
       const s = page.state;
+      if (id === 'about') return about(s);
       // The header menu can't grey an item out while something runs.
       if (s.busy) return;
       return runPlaylistAction(id, {

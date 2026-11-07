@@ -1,4 +1,6 @@
-// An Apple Music artist.
+// An Apple Music artist, headed as Elbert's own artist page is.
+// `data.modern` is false on an Elbert without the newer header pieces: there
+// the page keeps info chips and the biography under the header.
 
 import core;
 import material;
@@ -12,14 +14,20 @@ widget ArtistPage = switch data.status {
     child: ScrollPage(
       topInset: false,
       bleed: true,
-      bottomInset: "dock",
+      bottomInset: switch data.modern { true: "header", default: "dock" },
       slivers: [
         StickyHeader(
           title: data.title,
           subtitle: data.subtitle,
           type: "ARTIST",
           cover: data.cover,
+          hero: switch data.hasHero { true: data.hero },
+          heroPhoto: true,
+          summary: data.summary,
+          onSummary: event "about" {},
           info: data.info,
+          menu: data.menu,
+          onMenu: event "about" {},
           onPlayAll: event "playAll" {},
           onShuffle: event "shuffle" {},
         ),
@@ -35,13 +43,19 @@ widget ArtistPage = switch data.status {
         switch data.hasTopSongs {
           true: SliverBox(
             child: Padding(
-              padding: [16.0, 28.0, 16.0, 8.0],
-              child: SlideIn(delayMs: 160, child: ArtistHeading(text: "Top Songs")),
+              padding: switch data.modern { true: [16.0, 24.0, 16.0, 16.0], default: [16.0, 28.0, 16.0, 8.0] },
+              child: SlideIn(
+                delayMs: switch data.modern { true: 200, default: 160 },
+                child: switch data.modern {
+                  true: TracksHeading(text: "Top Songs"),
+                  default: ArtistHeading(text: "Top Songs"),
+                },
+              ),
             ),
           ),
           default: SliverGap(height: 0.0),
         },
-        TrackList(items: data.topSongs, spacing: 8.0, onPlay: event "play" {}, onMenu: event "menu" {}),
+        TrackList(items: data.topSongs, spacing: 8.0, provider: "Apple Music", onPlay: event "play" {}, onMenu: event "menu" {}),
         SliverBox(
           child: Column(
             crossAxisAlignment: "stretch",

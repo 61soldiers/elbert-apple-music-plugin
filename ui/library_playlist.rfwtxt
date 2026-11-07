@@ -1,4 +1,7 @@
-// One of the account's library playlists: the page that can edit it.
+// One of the account's library playlists: the page that can edit it, laid
+// out as Elbert's own playlist page is. `data.modern` is false on an Elbert
+// without the newer header pieces: there it keeps info chips, a Download row
+// and the description under the header.
 
 import core;
 import material;
@@ -11,63 +14,91 @@ widget LibraryPlaylistPage = switch data.status {
     durationMs: 500,
     child: ScrollPage(
       topInset: false,
-      bottomInset: "dock",
+      bottomInset: switch data.modern { true: "header", default: "dock" },
       slivers: [
-        // Rename / Edit order / Sync / Delete are the header's ⋯ menu; a
-        // read-only playlist sends none, so it has no menu.
+        // About / Reorder or remove songs / Rename / Sync / Delete are the
+        // header's ⋯ menu; a read-only playlist has About at most.
         StickyHeader(
           title: data.title,
           subtitle: data.subtitle,
           type: "PLAYLIST",
           cover: data.cover,
+          summary: data.summary,
+          onSummary: switch data.hasAbout { true: event "about" {} },
           info: data.info,
-          expanded: 450.0,
+          expanded: switch data.modern { true: 380.0, default: 450.0 },
           menu: data.actions,
           onMenu: event "action" {},
           onPlayAll: event "play" { index: 0 },
           onShuffle: event "shuffle" {},
+          onDownload: switch data.hasTracks { true: event "downloadAll" {} },
+          downloadLabel: data.downloadLabel,
+          downloadBusy: data.busy,
         ),
-        SliverBox(
-          child: Padding(
-            padding: [16.0, 20.0, 16.0, 0.0],
-            child: SlideIn(
-              delayMs: 150,
-              child: Column(
-                crossAxisAlignment: "start",
-                children: [
-                  Wrap(
-                    spacing: 12.0,
-                    runSpacing: 12.0,
-                    children: [
-                      Button(
-                        icon: "download",
-                        label: "Download all",
-                        busy: data.busy,
-                        disabled: switch data.hasTracks { true: false, default: true },
-                        onPressed: event "downloadAll" {},
-                      ),
-                      switch data.editing {
-                        true: Button(variant: "tonalFilled", icon: "circle-check", label: "Done reordering", onPressed: event "toggleEditing" {}),
-                        default: SizedBox(),
-                      },
-                    ],
-                  ),
-                  switch data.hasDescription {
-                    true: Padding(
-                      padding: [0.0, 14.0, 0.0, 16.0],
-                      child: ExpandableText(text: data.description, maxWidth: 640.0),
+        switch data.modern {
+          true: SliverGap(height: 0.0),
+          default: SliverBox(
+            child: Padding(
+              padding: [16.0, 20.0, 16.0, 0.0],
+              child: SlideIn(
+                delayMs: 150,
+                child: Column(
+                  crossAxisAlignment: "start",
+                  children: [
+                    Wrap(
+                      spacing: 12.0,
+                      runSpacing: 12.0,
+                      children: [
+                        Button(
+                          icon: "download",
+                          label: data.downloadLabel,
+                          busy: data.busy,
+                          disabled: switch data.hasTracks { true: false, default: true },
+                          onPressed: event "downloadAll" {},
+                        ),
+                        switch data.editing {
+                          true: Button(variant: "tonalFilled", icon: "circle-check", label: "Done reordering", onPressed: event "toggleEditing" {}),
+                          default: SizedBox(),
+                        },
+                      ],
                     ),
-                    default: SizedBox(),
-                  },
-                ],
+                    switch data.hasDescription {
+                      true: Padding(
+                        padding: [0.0, 14.0, 0.0, 16.0],
+                        child: ExpandableText(text: data.description, maxWidth: 640.0),
+                      ),
+                      default: SizedBox(),
+                    },
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        switch data.editing {
+        },
+        switch data.modern {
           true: SliverBox(
             child: Padding(
-              padding: [16.0, 16.0, 16.0, 0.0],
+              padding: [16.0, 24.0, 16.0, 0.0],
+              child: SlideIn(
+                delayMs: 200,
+                child: switch data.editing {
+                  true: TracksHeading(
+                    text: "Tracks",
+                    toggle: false,
+                    actions: [Button(variant: "filled", icon: "check", label: "Done", onPressed: event "toggleEditing" {})],
+                  ),
+                  default: TracksHeading(text: "Tracks"),
+                },
+              ),
+            ),
+          ),
+          default: SliverGap(height: 0.0),
+        },
+        switch data.editing {
+          true: SliverBox(
+            // Elbert's rows pad themselves; the older list tiles don't.
+            child: Padding(
+              padding: switch data.modern { true: [0.0, 12.0, 0.0, 0.0], default: [16.0, 16.0, 16.0, 0.0] },
               child: ReorderableTrackList(
                 items: data.editItems,
                 removeLabel: "Remove from playlist",
@@ -76,12 +107,16 @@ widget LibraryPlaylistPage = switch data.status {
               ),
             ),
           ),
-          default: TrackList(
-            items: data.tracks,
-            hasMore: data.hasMore,
-            onLoadMore: event "more" {},
-            onPlay: event "play" {},
-            onMenu: event "menu" {},
+          default: SliverPad(
+            padding: switch data.modern { true: [0.0, 12.0, 0.0, 0.0], default: [0.0, 0.0, 0.0, 0.0] },
+            sliver: TrackList(
+              items: data.tracks,
+              provider: "Apple Music",
+              hasMore: data.hasMore,
+              onLoadMore: event "more" {},
+              onPlay: event "play" {},
+              onMenu: event "menu" {},
+            ),
           ),
         },
         SliverGap(height: 12.0),

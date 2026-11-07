@@ -1,4 +1,7 @@
-// A catalog playlist, album or song.
+// A catalog playlist, album or song, laid out as Elbert's own album and
+// playlist pages are. `data.modern` is false on an Elbert without
+// StickyHeader's summary/Download, TracksHeading and the track table: there
+// the page keeps its older layout (info chips, a Download row, the notes).
 
 import core;
 import material;
@@ -11,80 +14,77 @@ widget DetailPage = switch data.status {
     durationMs: 500,
     child: ScrollPage(
       topInset: false,
-      bottomInset: "dock",
+      bottomInset: switch data.modern { true: "header", default: "dock" },
       slivers: [
-        // Go to artist / Downloads, and Rename / Edit order / Sync / Delete once
-        // the playlist turns out to be one of yours, live in the header's ⋯ menu.
+        // About / Go to artist / Downloads, and Reorder / Rename / Sync /
+        // Delete once the playlist turns out to be one of yours, live in the
+        // header's ⋯ menu.
         StickyHeader(
           title: data.title,
           subtitle: data.subtitle,
           type: data.type,
           cover: data.cover,
+          hero: switch data.hasHero { true: data.hero },
+          summary: data.summary,
+          onSummary: event "about" {},
           info: data.info,
-          expanded: 450.0,
+          expanded: switch data.modern { true: 380.0, default: 450.0 },
           menu: data.menu,
           onMenu: event "headerMenu" {},
           onPlayAll: event "play" { index: 0 },
           onShuffle: event "shuffle" {},
           onSubtitle: switch data.hasArtist { true: event "artist" {} },
+          onDownload: event "downloadAll" {},
+          downloadLabel: data.downloadLabel,
+          downloadBusy: data.bulkActive,
         ),
-        SliverBox(
-          child: Padding(
-            padding: [16.0, 20.0, 16.0, 0.0],
-            child: SlideIn(
-              delayMs: 150,
-              child: Column(
-                crossAxisAlignment: "start",
-                children: [
-                  Wrap(
-                    spacing: 12.0,
-                    runSpacing: 12.0,
-                    children: [
-                      Button(icon: "download", label: data.downloadLabel, busy: data.bulkActive, onPressed: event "downloadAll" {}),
-                    ],
-                  ),
-                  switch data.hasNotes {
-                    true: Padding(
-                      padding: [0.0, 14.0, 0.0, 0.0],
-                      child: ExpandableText(text: data.notes, credit: data.credit, maxWidth: 640.0),
+        switch data.modern {
+          true: SliverBox(child: DownloadProgress()),
+          default: SliverBox(
+            child: Padding(
+              padding: [16.0, 20.0, 16.0, 0.0],
+              child: SlideIn(
+                delayMs: 150,
+                child: Column(
+                  crossAxisAlignment: "start",
+                  children: [
+                    Wrap(
+                      spacing: 12.0,
+                      runSpacing: 12.0,
+                      children: [
+                        Button(icon: "download", label: data.downloadLabel, busy: data.bulkActive, onPressed: event "downloadAll" {}),
+                      ],
                     ),
-                    default: SizedBox(),
-                  },
-                  switch data.hasBulk {
-                    true: Padding(
-                      padding: [0.0, 12.0, 0.0, 0.0],
-                      child: Column(
-                        crossAxisAlignment: "start",
-                        children: [
-                          ProgressLine(value: data.bulkProgress, caption: data.bulkCaption),
-                          switch data.hasBulkFolder {
-                            true: Padding(
-                              padding: [0.0, 8.0, 0.0, 0.0],
-                              child: Button(variant: "text", icon: "folder-open", label: "View Files", onPressed: event "viewFiles" {}),
-                            ),
-                            default: SizedBox(),
-                          },
-                        ],
+                    switch data.hasNotes {
+                      true: Padding(
+                        padding: [0.0, 14.0, 0.0, 0.0],
+                        child: ExpandableText(text: data.notes, credit: data.credit, maxWidth: 640.0),
                       ),
-                    ),
-                    default: SizedBox(),
-                  },
-                ],
+                      default: SizedBox(),
+                    },
+                    DownloadProgress(),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
+        },
         SliverBox(
           child: Padding(
             padding: [16.0, 24.0, 16.0, 16.0],
             child: SlideIn(
               delayMs: 200,
-              child: ThemedText(text: "Tracks", style: "titleLarge", weight: 600, size: 20.0),
+              child: switch data.modern {
+                true: TracksHeading(text: "Tracks"),
+                default: ThemedText(text: "Tracks", style: "titleLarge", weight: 600, size: 20.0),
+              },
             ),
           ),
         ),
         TrackList(
           items: data.tracks,
+          spacing: data.rowSpacing,
+          provider: "Apple Music",
           hasMore: data.hasMore,
           onLoadMore: event "more" {},
           onPlay: event "play" {},
@@ -95,4 +95,25 @@ widget DetailPage = switch data.status {
       ],
     ),
   ),
+};
+
+// A Download all's progress and, once done, the folder it landed in.
+widget DownloadProgress = switch data.hasBulk {
+  true: Padding(
+    padding: switch data.modern { true: [16.0, 20.0, 16.0, 0.0], default: [0.0, 12.0, 0.0, 0.0] },
+    child: Column(
+      crossAxisAlignment: "start",
+      children: [
+        ProgressLine(value: data.bulkProgress, caption: data.bulkCaption),
+        switch data.hasBulkFolder {
+          true: Padding(
+            padding: [0.0, 8.0, 0.0, 0.0],
+            child: Button(variant: "text", icon: "folder-open", label: "View Files", onPressed: event "viewFiles" {}),
+          ),
+          default: SizedBox(),
+        },
+      ],
+    ),
+  ),
+  default: SizedBox(),
 };
