@@ -23,7 +23,8 @@ jobs:
       matrix:
         include:
           - { id: windows-amd64, os: ubuntu-24.04, target: windows }
-          - { id: darwin-arm64, os: macos-14, target: macos }
+          # GitHub retired macos-14; 15 is its Apple-silicon image now.
+          - { id: darwin-arm64, os: macos-15, target: macos }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
