@@ -106,6 +106,28 @@ export const pinCard = (p: Pin): Card => ({
   placeholderIcon: 'pin',
 });
 
+/** The year of an ISO date (`2021-03-05`), or nothing. */
+export function releaseYear(date: string | undefined): number | undefined {
+  const y = Number.parseInt(date?.slice(0, 4) ?? '', 10);
+  return y > 0 ? y : undefined;
+}
+
+/**
+ * Whether this Elbert draws plugin pages with its newer detail-page pieces:
+ * `StickyHeader`'s summary and Download, `TracksHeading`, the track table and
+ * the About sheet. They shipped together, so the sheet's API tells.
+ */
+export const hasDetailPages = (): boolean => typeof elbert.ui.details === 'function';
+
+/** Opens Elbert's About sheet: facts with no value are left out. */
+export function showAbout(title: string, facts: [string, string | undefined][], text?: string) {
+  return elbert.ui.details?.({
+    title,
+    facts: facts.filter((f): f is [string, string] => !!f[1]).map(([label, value]) => ({ label, value })),
+    ...(text ? { text } : {}),
+  });
+}
+
 /**
  * A track row for `TrackList`. [localId] is the library track a song plays as
  * when there is a local copy, so the now-playing indicator finds it either way.
@@ -131,6 +153,14 @@ export function songRow(
     artistLink: !!s.artistId,
     matchIds: [`applemusic-stream:${s.id}`, ...(opts.localId ? [opts.localId] : [])],
     menu: opts.menu ?? songMenu(s, !!opts.localId),
+    // What the track table's columns show, where the user draws lists as one.
+    album: s.albumName,
+    durationMs: s.durationMs,
+    year: releaseYear(s.releaseDate),
+    genre: s.genres.find((g) => g !== 'Music'),
+    trackNumber: s.trackNumber > 0 ? s.trackNumber : undefined,
+    discNumber: s.discNumber > 0 ? s.discNumber : undefined,
+    isrc: s.isrc,
   };
 }
 

@@ -1,14 +1,17 @@
-// An Apple Music artist: the header, biography, top songs, then the
+// An Apple Music artist, headed as Elbert's own artist page is (a summary
+// line, About with the biography in the ⋯ menu): top songs, then the
 // discography rails Apple exposes (latest release, albums, singles & EPs,
-// compilations, appears on), playlists and similar artists.
+// compilations, appears on), playlists and similar artists. On an Elbert
+// without the newer header the biography sits under it, as before.
 
 import type { Page } from '@evolvedmesh/elbert-plugin-sdk';
 import { rememberContext } from '../activity';
 import { artist as fetchArtist } from '../data';
+import { formatCount } from '../format';
 import { stripHtml } from '../html';
 import { type Album, type Artist, bestArtwork, sizedArtwork } from '../orchard/client';
 import { playSongs } from '../playback';
-import { definePage, errorText, type PageData, routes, update } from './common';
+import { definePage, errorText, hasDetailPages, type PageData, routes, showAbout, update } from './common';
 import { SongList } from './tracks';
 
 const TOP_SONGS = 10;
@@ -80,9 +83,24 @@ function rails(a: Artist): Rail[] {
   return list.filter((r): r is Rail => r != null);
 }
 
+function about(a: Artist) {
+  return showAbout(
+    a.name,
+    [
+      ['Genres', a.genres.join(', ')],
+      ['From', a.origin],
+      ['Born or formed', a.bornOrFormed],
+      ['Albums', a.albums.length ? String(a.albums.length) : undefined],
+      ['Singles & EPs', a.singles.length ? String(a.singles.length) : undefined],
+    ],
+    stripHtml(a.notes).trim(),
+  );
+}
+
 function render(page: P) {
   const { artist: a, list } = page.state;
   if (!a) return;
+  const modern = hasDetailPages();
   const info = [
     ...(a.genres.length ? [{ label: 'Genre', value: a.genres[0] }] : []),
     ...(a.origin ? [{ label: 'From', value: a.origin }] : []),
@@ -91,11 +109,18 @@ function render(page: P) {
   const bio = stripHtml(a.notes).trim();
   update(page, {
     status: 'ready',
+    modern,
     title: a.name,
-    subtitle: a.genres.join(' · '),
+    // Elbert's artist header has no subtitle: the genre leads the summary instead.
+    subtitle: modern ? '' : a.genres.join(' · '),
     cover: bestArtwork(a.artwork),
-    info: info.length ? info : [{ label: 'Artist', value: a.name }],
-    hasBio: !!bio,
+    // The artist's photo across the header, as on Elbert's own artist page.
+    hasHero: !!a.artwork,
+    hero: sizedArtwork(a.artwork, 1600) ?? '',
+    summary: [a.genres[0], a.albums.length ? formatCount(a.albums.length, 'album') : '', a.origin].filter(Boolean).join(' · '),
+    info: modern ? [] : info.length ? info : [{ label: 'Artist', value: a.name }],
+    menu: modern ? [{ id: 'about', label: 'About', icon: 'info' }] : [],
+    hasBio: !modern && !!bio,
     bio,
     hasTopSongs: list.songs.length > 0,
     topSongs: list.rows(),
@@ -125,9 +150,12 @@ definePage<PageData, State>('artist', {
         update(page, { status: 'error', error: errorText(e) });
       }
     })();
-    return { status: 'loading', topSongs: [], rails: [], info: [] };
+    return { status: 'loading', modern: hasDetailPages(), topSongs: [], rails: [], info: [], menu: [] };
   },
   events: {
+    about(page) {
+      if (page.state.artist) return about(page.state.artist);
+    },
     playAll(page) {
       return playSongs(page.state.artist?.topSongs ?? [], 0);
     },

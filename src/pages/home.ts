@@ -1,9 +1,12 @@
-// The Apple Music Home tab, laid out like the Apple Music app's own: a top
-// strip with the "New Music" hero and the account's pins beside it (a phone
-// shows the hero alone — pins live on its Library tab), then a feed of shelves
-// — Recently Played, Playlists Made for You, Stations for You, New Releases
-// for You, Acoustic, … — and Replay last. Until a session is ready it shows
-// the setup flow instead.
+// The Apple Music Home tab. Elbert's own Home is the model, drawn with the
+// same parts (`SpotlightCard`, `SectionHeading`, the media tiles with their
+// hover Play): a spotlight on the weekly "New Music" mix (Play, or open it)
+// with the account's pins beside it; then the feed of
+// shelves — Recently Played, Playlists Made for You as big tiles, Stations,
+// New Releases, Acoustic, … — every tile playable in one click; and Replay
+// last, as a banner. A phone shows the spotlight alone (pins live on its
+// Library tab). Until a session is ready it shows the setup flow instead. An
+// Elbert without those parts gets the previous layout (`modern`).
 //
 // Request budget. Home costs three requests however many shelves Apple has:
 // `/v1/me/recommendations` (MusicKit's Get Recommendations — the whole feed in
@@ -24,8 +27,9 @@ import { pins, recentlyPlayed, recommendations, replayYears } from '../data';
 import type { Item, Pin, RecommendationGroup } from '../orchard/client';
 import { sizedArtwork } from '../orchard/client';
 import { managed } from '../orchard/managed';
-import { buildShelves, replayCard, type Shelf, shelfData, shelfItem } from '../shelves';
-import { definePage, errorText, onClose, openItem, openPin, type PageData, pinCard, RAIL_PX, SECTION, sectionChrome, update } from './common';
+import { buildShelves, findNewMusic, pickSpotlight, replayCard, type Shelf, type Spotlight, shelfData, shelfItem } from '../shelves';
+import { definePage, errorText, hasDetailPages, onClose, openItem, openPin, type PageData, pinCard, RAIL_PX, SECTION, sectionChrome, update } from './common';
+import { playItem } from './play_item';
 import { SetupFlow } from './setup';
 
 /** Shelves drawn on open, and added each time the end of the feed scrolls into view. */
@@ -35,22 +39,11 @@ const MORE_SHELVES = 3;
 /** A pull-to-refresh sooner than this after the last real one re-reads the cache. */
 const REFRESH_COOLDOWN = 20_000;
 
-/**
- * The "New Music" mix. A recommendation group rarely is one named mix, so this
- * searches item names flattened across every group, not group titles.
- */
-export function findNewMusic(groups: RecommendationGroup[]): Item | null {
-  const byId = new Map<string, Item>();
-  for (const g of groups) for (const it of g.items) if (!byId.has(it.id)) byId.set(it.id, it);
-  let loose: Item | null = null;
-  for (const it of byId.values()) {
-    if (it.type !== 'playlists') continue;
-    const name = it.name.toLowerCase();
-    if (name === 'new music') return it;
-    if (!loose && name.includes('new music')) loose = it;
-  }
-  return loose;
-}
+/** The pins the panel beside the spotlight lists (two rows of two); the rest are a tap away on Library. */
+const PANEL_PINS = 4;
+
+/** The spotlight's cover is drawn up to 168 px, so 400 covers it at 2×. */
+const SPOTLIGHT_PX = 400;
 
 type Load = 'loading' | 'ready' | 'error';
 
@@ -60,6 +53,8 @@ interface State {
   recent: Item[];
   pins: Pin[];
   hero: Item | null;
+  spotlight: Spotlight | null;
+  spotlightBusy: boolean;
   shelves: Shelf[];
   revealed: number;
   recs: Load;
@@ -73,6 +68,7 @@ interface State {
 function showShelves(page: Page<PageData, State>) {
   const s = page.state;
   s.shelves = buildShelves(s.groups, s.recent);
+  showSpotlight(page);
   const visible = s.shelves.slice(0, s.revealed);
   const settled = s.recs !== 'loading' && s.recentLoad !== 'loading';
   const exhausted = settled && s.revealed >= s.shelves.length;
@@ -85,6 +81,34 @@ function showShelves(page: Page<PageData, State>) {
     s.replayRequested = true;
     void loadReplay(page);
   }
+}
+
+/** The spotlight card's data, once either feed has landed. */
+function showSpotlight(page: Page<PageData, State>) {
+  const s = page.state;
+  s.spotlight = pickSpotlight(s.groups, s.recent);
+  const spot = s.spotlight;
+  update(page, {
+    hasSpotlight: !!spot,
+    spotlight: spot
+      ? {
+          eyebrow: spot.eyebrow,
+          title: spot.item.name,
+          subtitle: spot.details,
+          cover: sizedArtwork(spot.item.artwork, SPOTLIGHT_PX) ?? '',
+          busy: s.spotlightBusy,
+        }
+      : undefined,
+  });
+}
+
+/** The pins panel: the first few, two to a row (the last padded, so columns line up). */
+function pinData(list: Pin[]) {
+  const cells = list.slice(0, PANEL_PINS).map((p, index) => ({ ...pinCard(p), index, filler: false }));
+  if (cells.length % 2) cells.push({ id: '', title: '', subtitle: '', index: -1, filler: true });
+  const rows: { items: typeof cells }[] = [];
+  for (let i = 0; i < cells.length; i += 2) rows.push({ items: cells.slice(i, i + 2) });
+  return { pins: list.map(pinCard), hasPins: list.length > 0, pinRows: rows };
 }
 
 async function loadReplay(page: Page<PageData, State>) {
@@ -119,6 +143,7 @@ async function load(page: Page<PageData, State>, force = false) {
       s.recs = 'ready';
       update(page, {
         recsStatus: 'ready',
+        // The older layout's hero strip.
         hasHero: !!s.hero,
         hero: s.hero ? { title: s.hero.name, caption: 'Your weekly mix of new releases', cover: sizedArtwork(s.hero.artwork, RAIL_PX) } : undefined,
       });
@@ -140,7 +165,7 @@ async function load(page: Page<PageData, State>, force = false) {
   const pinned = pins()
     .then((list) => {
       s.pins = list;
-      update(page, { pins: list.map(pinCard) });
+      update(page, pinData(list));
     })
     .catch(() => {});
 
@@ -156,6 +181,8 @@ definePage<PageData, State>('home', {
     s.recent = [];
     s.pins = [];
     s.hero = null;
+    s.spotlight = null;
+    s.spotlightBusy = false;
     s.shelves = [];
     s.revealed = FIRST_SHELVES;
     s.recs = 'loading';
@@ -180,15 +207,17 @@ definePage<PageData, State>('home', {
 
     return {
       mode: 'setup',
+      modern: hasDetailPages(),
       setup: s.setup.data(),
       ...sectionChrome(page, SECTION),
       recsStatus: 'loading',
       shelvesStatus: 'loading',
       replayStatus: 'idle',
       hasHero: false,
+      hasSpotlight: false,
       hasMoreShelves: false,
       shelves: [],
-      pins: [],
+      ...pinData([]),
     };
   },
   events: {
@@ -218,6 +247,31 @@ definePage<PageData, State>('home', {
     shelf(page, { shelf, index }) {
       const item = shelfItem(page.state.shelves, shelf, index);
       if (item) return openItem(item);
+    },
+    // A tile's hover Play button.
+    shelfPlay(page, { shelf, index }) {
+      const item = shelfItem(page.state.shelves, shelf, index);
+      if (item) return playItem(item);
+    },
+    spotlight(page) {
+      const spot = page.state.spotlight;
+      if (spot) return openItem(spot.item);
+    },
+    async spotlightPlay(page) {
+      const s = page.state;
+      const spot = s.spotlight;
+      if (!spot || s.spotlightBusy) return;
+      s.spotlightBusy = true;
+      showSpotlight(page);
+      try {
+        await playItem(spot.item);
+      } finally {
+        s.spotlightBusy = false;
+        showSpotlight(page);
+      }
+    },
+    pins() {
+      return elbert.ui.navigate(`${SECTION}/library`, { mode: 'go' });
     },
     replay() {
       return elbert.ui.navigate(`${SECTION}/replay`, { mode: 'go' });

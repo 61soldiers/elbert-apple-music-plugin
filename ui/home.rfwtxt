@@ -1,5 +1,11 @@
 // The Apple Music Home tab — or, until a session is ready, the setup flow.
 //
+// Laid out like Elbert's own Home, with its parts: a
+// SpotlightCard (Home's now-playing card) for the weekly mix with the pins
+// beside it, shelves under Home's section titles, tiles with Elbert's hover
+// Play, and Replay as a banner. `data.modern` is false on an Elbert without
+// those parts, which keeps the previous layout (ClassicHome).
+//
 // The page is a ScrollList, not a ScrollPage of slivers, because of the end
 // marker: a ListView mounts its children only near the viewport, so the marker
 // (a CompactTrackList with no rows and `hasMore`, which is just Elbert's
@@ -12,11 +18,229 @@ import elbert;
 import common;
 
 widget HomePage = switch data.mode {
-  "ready": HomeContent(),
+  "ready": switch data.modern { true: HomeContent(), default: ClassicHome() },
   default: SetupFlow(setup: data.setup),
 };
 
 widget HomeContent = Stagger(
+  durationMs: 700,
+  child: ScrollList(
+    bleed: true,
+    padding: [0.0, 0.0],
+    refreshEvent: "refresh",
+    children: [
+      TopInset(),
+      SlideIn(
+        delayMs: 0,
+        child: Padding(
+          padding: [0.0, 0.0, 0.0, 20.0],
+          child: Row(
+            children: [
+              ThemedIcon(name: "music-4", color: "primary", size: 26.0),
+              SizedBox(width: 10.0),
+              Expanded(child: ThemedText(text: "Apple Music", style: "headlineMedium", weight: 700, size: 28.0)),
+              switch data.layout.mobile {
+                true: IconButton(icon: "folder-down", tooltip: "Downloads", badge: data.tabs.4.badge, onPressed: event "downloads" {}),
+                default: SizedBox(),
+              },
+            ],
+          ),
+        ),
+      ),
+      SlideIn(
+        delayMs: 40,
+        child: Padding(
+          padding: [0.0, 0.0, 0.0, 24.0],
+          child: switch data.layout.mobile {
+            true: Align(
+              alignment: { x: -1.0, y: 0.0 },
+              child: Button(variant: "chip", icon: "arrow-left", label: "Your library", onPressed: event "library" {}),
+            ),
+            default: SubNav(tabs: data.tabs, current: data.current),
+          },
+        ),
+      ),
+      switch data.recsStatus {
+        "loading": Loader(expand: false, height: 216.0),
+        "error": Message(text: data.recsError, color: "error"),
+        default: SlideIn(delayMs: 80, child: TopRow()),
+      },
+      SizedBox(height: 36.0),
+      switch data.shelvesStatus {
+        "loading": Loader(expand: false, height: 260.0),
+        "empty": EmptyCard(icon: "sparkles", title: "Nothing to recommend yet", text: "Play some music and check back."),
+        default: SizedBox(),
+      },
+      ...for s in data.shelves:
+        SlideIn(
+          delayMs: s.delay,
+          child: Padding(
+            padding: [0.0, 0.0, 0.0, 36.0],
+            child: Column(
+              crossAxisAlignment: "stretch",
+              children: [
+                SectionHeading(title: s.title, caption: s.reason),
+                SizedBox(height: 6.0),
+                switch s.kind {
+                  "feature": CardRail(cardWidth: 260.0, items: s.items, onTap: event "shelf" { shelf: s.key }, onPlay: event "shelfPlay" { shelf: s.key }),
+                  "stations": CardRail(size: "artist", items: s.items, onTap: event "shelf" { shelf: s.key }, onPlay: event "shelfPlay" { shelf: s.key }),
+                  default: CardRail(size: "home", items: s.items, onTap: event "shelf" { shelf: s.key }, onPlay: event "shelfPlay" { shelf: s.key }),
+                },
+              ],
+            ),
+          ),
+        ),
+      // Mounted only when the user nears it; draws the next few shelves.
+      switch data.hasMoreShelves {
+        true: CompactTrackList(items: [], hasMore: true, onLoadMore: event "more" {}),
+        default: SizedBox(),
+      },
+      switch data.replayStatus {
+        "loading": Loader(expand: false, height: 168.0),
+        "ready": SlideIn(
+          delayMs: 0,
+          child: Padding(padding: [0.0, 0.0, 0.0, 32.0], child: ReplayBanner(replay: data.replay)),
+        ),
+        default: SizedBox(),
+      },
+    ],
+  ),
+);
+
+// The spotlight and the pins: side by side on a wide page, as Elbert's Home
+// puts what's playing beside the week; stacked (pins as chips) on a narrower
+// one; the spotlight alone on a phone, whose pins are on the Library tab.
+widget TopRow = switch data.layout.expanded {
+  true: switch data.hasSpotlight {
+    true: SizedBox(
+      height: 216.0,
+      child: Row(
+        crossAxisAlignment: "stretch",
+        children: [
+          Expanded(flex: 7, child: Spotlight()),
+          switch data.hasPins {
+            true: Expanded(flex: 5, child: Padding(padding: [16.0, 0.0, 0.0, 0.0], child: PinsPanel())),
+            default: SizedBox(),
+          },
+        ],
+      ),
+    ),
+    default: switch data.hasPins { true: SizedBox(height: 216.0, child: PinsPanel()), default: SizedBox() },
+  },
+  default: Column(
+    crossAxisAlignment: "stretch",
+    children: [
+      switch data.hasSpotlight { true: Spotlight(), default: SizedBox() },
+      switch data.layout.mobile {
+        true: SizedBox(),
+        default: switch data.hasPins {
+          true: Padding(padding: [0.0, 16.0, 0.0, 0.0], child: PinStrip(items: data.pins, onTap: event "pin" {})),
+          default: SizedBox(),
+        },
+      },
+    ],
+  ),
+};
+
+widget Spotlight = SpotlightCard(
+  cover: data.spotlight.cover,
+  placeholderIcon: "list-music",
+  eyebrow: data.spotlight.eyebrow,
+  title: data.spotlight.title,
+  subtitle: data.spotlight.subtitle,
+  onTap: event "spotlight" {},
+  onPlay: event "spotlightPlay" {},
+  playBusy: data.spotlight.busy,
+  openLabel: "Open",
+  openIcon: "arrow-up-right",
+  onOpen: event "spotlight" {},
+);
+
+// The first pins, two to a row; "See all" opens them all on Library.
+widget PinsPanel = Surface(
+  tone: "low",
+  radius: "extraLarge",
+  padding: [20.0, 12.0, 12.0, 8.0],
+  child: Column(
+    crossAxisAlignment: "stretch",
+    children: [
+      Row(
+        children: [
+          ThemedIcon(name: "pin", color: "primary", size: 18.0),
+          SizedBox(width: 8.0),
+          Expanded(child: ThemedText(text: "Pinned", style: "titleMedium", weight: 800)),
+          Button(variant: "text", label: "See all", onPressed: event "pins" {}),
+        ],
+      ),
+      SizedBox(height: 4.0),
+      ...for r in data.pinRows:
+        Row(
+          children: [
+            ...for p in r.items:
+              Expanded(
+                child: Padding(
+                  padding: [0.0, 0.0, 12.0, 0.0],
+                  child: switch p.filler {
+                    true: SizedBox(),
+                    default: MediaRow(title: p.title, subtitle: p.subtitle, cover: p.cover, onTap: event "pin" { index: p.index }),
+                  },
+                ),
+              ),
+          ],
+        ),
+    ],
+  ),
+);
+
+// The latest Replay year as a banner in the theme's own colours: its headline
+// number, and the way into the Replay tab.
+widget ReplayBanner = Surface(
+  tone: "high",
+  radius: "extraLarge",
+  padding: [0.0, 0.0, 0.0, 0.0],
+  onTap: event "replay" {},
+  child: SizedBox(
+    height: 176.0,
+    child: Stack(
+      fit: "expand",
+      children: [
+        GradientFill(kind: "linear", colors: ["primaryContainer", "tertiaryContainer"], stops: [0.0, 1.0], angle: 0.08),
+        Orb(color: "primary", opacity: 0.30, size: 1.2, x: 0.95, y: -0.9, driftX: 0.1, driftY: 0.1, seconds: 26.0),
+        Orb(color: "tertiary", opacity: 0.26, size: 1.0, x: 0.35, y: 1.1, driftX: 0.12, driftY: 0.08, seconds: 32.0, phase: 0.5),
+        Padding(
+          padding: [28.0, 22.0, 24.0, 22.0],
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: "start",
+                  mainAxisAlignment: "center",
+                  children: [
+                    ThemedText(text: args.replay.title, style: "headlineMedium", color: "onPrimaryContainer", weight: 800, maxLines: 1),
+                    switch args.replay.hasHeadline {
+                      true: ThemedText(text: args.replay.headline, style: "headlineSmall", color: "onPrimaryContainer", weight: 700, maxLines: 1),
+                      default: SizedBox(),
+                    },
+                    SizedBox(height: 4.0),
+                    ThemedText(text: args.replay.subtitle, style: "bodyMedium", color: "onPrimaryContainer", maxLines: 1),
+                  ],
+                ),
+              ),
+              switch data.layout.mobile {
+                true: ThemedIcon(name: "chevron-right", color: "onPrimaryContainer", size: 24.0),
+                default: Button(variant: "filled", icon: "chart-no-axes-column", label: "Open Replay", onPressed: event "replay" {}),
+              },
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+
+// ---- The previous layout, for an Elbert without the parts above ----------------------
+
+widget ClassicHome = Stagger(
   durationMs: 700,
   child: ScrollList(
     bleed: true,

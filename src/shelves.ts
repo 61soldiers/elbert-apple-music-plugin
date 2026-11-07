@@ -10,7 +10,7 @@
 
 import { type Card, itemCard, RAIL_PX } from './cards';
 import { formatListenMinutes, groupDigits } from './format';
-import type { Item, RecommendationGroup, Summary, SummaryIndex } from './orchard/client';
+import { type Item, itemSubtitle, type RecommendationGroup, type Summary, type SummaryIndex } from './orchard/client';
 
 /** How a shelf is drawn: big cards, ordinary cards, or the narrower station cards. */
 export type ShelfKind = 'feature' | 'rail' | 'stations';
@@ -43,7 +43,9 @@ interface Role {
 // Recently Played sits at rank 1.
 const ROLES: Role[] = [
   { test: /^top picks/i, rank: 0, kind: 'feature' },
-  { test: /made for you/i, rank: 2 },
+  // The account's own mixes (New Music, Heavy Rotation, Chill…): the shelf
+  // most worth a big tile.
+  { test: /made for you/i, rank: 2, kind: 'feature' },
   { test: /^stations/i, rank: 3, kind: 'stations' },
   { test: /mood/i, rank: 4 },
   { test: /^new releases/i, rank: 5 },
@@ -87,6 +89,50 @@ export function buildShelves(groups: RecommendationGroup[], recent: Item[]): She
   }
   // Array#sort is stable, so equal ranks keep Apple's order.
   return ranked.sort((a, b) => a.rank - b.rank).map((r) => r.shelf);
+}
+
+// ---- Spotlight --------------------------------------------------------------------
+
+/**
+ * The "New Music" mix. A recommendation group rarely is one named mix, so this
+ * searches item names flattened across every group, not group titles.
+ */
+export function findNewMusic(groups: RecommendationGroup[]): Item | null {
+  const byId = new Map<string, Item>();
+  for (const g of groups) for (const it of g.items) if (!byId.has(it.id)) byId.set(it.id, it);
+  let loose: Item | null = null;
+  for (const it of byId.values()) {
+    if (it.type !== 'playlists') continue;
+    const name = it.name.toLowerCase();
+    if (name === 'new music') return it;
+    if (!loose && name.includes('new music')) loose = it;
+  }
+  return loose;
+}
+
+export interface Spotlight {
+  item: Item;
+  /** The small coloured label over the title. */
+  eyebrow: string;
+  details: string;
+}
+
+/**
+ * Home's big card: the weekly New Music mix; failing that, the first of the
+ * account's own mixes; failing that, what was played last. Null when there
+ * is nothing at all.
+ */
+export function pickSpotlight(groups: RecommendationGroup[], recent: Item[]): Spotlight | null {
+  const newMusic = findNewMusic(groups);
+  if (newMusic) {
+    return { item: newMusic, eyebrow: 'YOUR WEEKLY MIX', details: itemSubtitle(newMusic) || 'New releases, picked for you' };
+  }
+  const mixes = groups.find((g) => /made for you/i.test(g.title));
+  const mix = mixes?.items.find((i) => i.type === 'playlists') ?? mixes?.items[0];
+  if (mix) return { item: mix, eyebrow: 'MADE FOR YOU', details: itemSubtitle(mix) };
+  const last = recent[0];
+  if (last) return { item: last, eyebrow: 'JUMP BACK IN', details: itemSubtitle(last) };
+  return null;
 }
 
 /** What the template draws for one shelf. [delay] staggers the first batch's entrance. */
